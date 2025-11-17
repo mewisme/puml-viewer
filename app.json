@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "expo-puml-viewer",
-    "slug": "expo-puml-viewer",
+    "name": "PUML Viewer",
+    "slug": "puml-viewer",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -36,6 +36,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "33ab2485-6368-4d19-8a9c-dc913e021fc6"
+      }
+    },
+    "owner": "mewisme"
   }
 }

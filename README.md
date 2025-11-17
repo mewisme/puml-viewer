@@ -1,73 +1,75 @@
-# Minimal Template
+# PUML Viewer
 
-This is a [React Native](https://reactnative.dev/) project built with [Expo](https://expo.dev/) and [React Native Reusables](https://reactnativereusables.com).
+A React Native application for viewing PlantUML diagrams. Built with Expo and React Native Reusables.
 
-It was initialized using the following command:
+## Features
 
-```bash
-npx @react-native-reusables/cli@latest init -t expo-puml-viewer
-```
+- Render PlantUML diagrams to PNG, SVG, and Text formats
+- Preview rendered diagrams directly in the app
+- Download PNG images
+- View raw content in browser
+- Zoom and pan PNG images
+- Paste PUML code from clipboard
+- Dark/Light theme support
 
 ## Getting Started
 
-To run the development server:
+### Prerequisites
+
+- Node.js 18+ 
+- pnpm (or npm/yarn)
+
+### Installation
 
 ```bash
-    npm run dev
-    # or
-    yarn dev
-    # or
-    pnpm dev
-    # or
-    bun dev
+pnpm install
 ```
 
-This will start the Expo Dev Server. Open the app in:
+### Development
 
-- **iOS**: press `i` to launch in the iOS simulator _(Mac only)_
-- **Android**: press `a` to launch in the Android emulator
-- **Web**: press `w` to run in a browser
-
-You can also scan the QR code using the [Expo Go](https://expo.dev/go) app on your device. This project fully supports running in Expo Go for quick testing on physical devices.
-
-## Adding components
-
-You can add more reusable components using the CLI:
+Start the development server:
 
 ```bash
-npx react-native-reusables/cli@latest add [...components]
+pnpm dev
 ```
 
-> e.g. `npx react-native-reusables/cli@latest add input textarea`
+Then press:
+- `i` for iOS simulator (Mac only)
+- `a` for Android emulator
+- `w` for web browser
 
-If you don't specify any component names, you'll be prompted to select which components to add interactively. Use the `--all` flag to install all available components at once.
+You can also scan the QR code with Expo Go app on your device.
 
-## Project Features
+## Project Structure
 
-- ⚛️ Built with [Expo Router](https://expo.dev/router)
-- 🎨 Styled with [Tailwind CSS](https://tailwindcss.com/) via [Nativewind](https://www.nativewind.dev/)
-- 📦 UI powered by [React Native Reusables](https://github.com/founded-labs/react-native-reusables)
-- 🚀 New Architecture enabled
-- 🔥 Edge to Edge enabled
-- 📱 Runs on iOS, Android, and Web
+```
+app/
+  index.tsx          # Main screen
+components/
+  ui/                # UI components
+lib/
+  utils.ts           # Utility functions
+```
 
-## Learn More
+## Technologies
 
-To dive deeper into the technologies used:
+- Expo Router
+- React Native
+- Nativewind (Tailwind CSS)
+- React Native Reusables
+- Expo File System
+- Expo Clipboard
+- React Native WebView
+- React Native Image Viewing
 
-- [React Native Docs](https://reactnative.dev/docs/getting-started)
-- [Expo Docs](https://docs.expo.dev/)
-- [Nativewind Docs](https://www.nativewind.dev/)
-- [React Native Reusables](https://reactnativereusables.com)
+## API
 
-## Deploy with EAS
+The app connects to the PUML Render Server API at `https://spuml.mewis.me`.
 
-The easiest way to deploy your app is with [Expo Application Services (EAS)](https://expo.dev/eas).
+Endpoints used:
+- POST `/api/v1/render/{type}` - Render PUML to specified format
+- GET `/api/v1/render/{type}/{id}/raw` - Get rendered content
 
-- [EAS Build](https://docs.expo.dev/build/introduction/)
-- [EAS Updates](https://docs.expo.dev/eas-update/introduction/)
-- [EAS Submit](https://docs.expo.dev/submit/introduction/)
+## License
 
----
-
-If you enjoy using React Native Reusables, please consider giving it a ⭐ on [GitHub](https://github.com/founded-labs/react-native-reusables). Your support means a lot!
+Private
