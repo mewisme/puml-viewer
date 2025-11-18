@@ -33,28 +33,22 @@ export default function AboutScreen() {
           </CardHeader>
           <CardContent className="gap-4">
             <View className="gap-2">
-              <Text className="text-lg font-bold">{APP_CONFIG.name}</Text>
-              <Text className="text-sm text-muted-foreground">Version {APP_CONFIG.version}</Text>
+              <Text className="text-lg font-bold">{APP_CONFIG.name} v{APP_CONFIG.version}</Text>
             </View>
 
-            <Separator />
-
             <View className="gap-2">
-              <Text className="text-sm font-medium">Description</Text>
               <Text className="text-sm text-muted-foreground">{APP_CONFIG.description}</Text>
             </View>
 
             <Separator />
 
             <View className="gap-2">
-              <Text className="text-sm font-medium">Author</Text>
-              <Text className="text-sm text-muted-foreground">{APP_CONFIG.author}</Text>
+              <Text className="text-sm text-muted-foreground">Made by <Text className="font-bold">{APP_CONFIG.author}</Text> with love.</Text>
             </View>
 
             <Separator />
 
             <View className="gap-2">
-              <Text className="text-sm font-medium">Links</Text>
               <TouchableOpacity
                 onPress={() => handleOpenLink(APP_CONFIG.links.github)}
                 className="flex-row items-center gap-2 rounded-lg border border-border bg-muted p-3">
@@ -90,15 +84,6 @@ export default function AboutScreen() {
                   <Text className="text-sm font-medium">{stats.favorites}</Text>
                 </View>
               </View>
-            </View>
-
-            <Separator />
-
-            <View className="gap-2">
-              <Text className="text-sm font-medium">Technologies</Text>
-              <Text className="text-xs text-muted-foreground">
-                Built with {APP_CONFIG.technologies.join(', ')}
-              </Text>
             </View>
           </CardContent>
         </Card>

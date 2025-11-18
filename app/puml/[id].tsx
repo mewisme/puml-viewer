@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { useSettings } from '@/lib/settings-context';
+import { getApiClient } from '@/lib/api-client';
 
 export default function PumlViewerScreen() {
   const params = useLocalSearchParams();
@@ -34,13 +35,10 @@ export default function PumlViewerScreen() {
         setIsLoading(true);
         setError(null);
 
-        const response = await fetch(`${apiUrl}/api/v1/puml/${id}`);
-        if (!response.ok) {
-          router.replace('/(tabs)');
-          return;
-        }
-
-        const result = await response.json();
+        const apiClient = getApiClient(apiUrl);
+        const response = await apiClient.get<{ puml: string }>(`/api/v1/puml/${id}`);
+        
+        const result = response.data;
         if (!result.puml) {
           router.replace('/(tabs)');
           return;

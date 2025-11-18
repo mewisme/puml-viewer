@@ -1,4 +1,4 @@
-import { History, Home, Info, Settings } from 'lucide-react-native';
+import { History, Home, Info, Settings, Bot } from 'lucide-react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { Tabs } from 'expo-router';
@@ -18,6 +18,15 @@ export default function TabLayout() {
           headerTitle: 'PUML Viewer',
           tabBarLabel: 'Home',
           tabBarIcon: ({ color, size }) => <Icon as={Home} size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="ai"
+        options={{
+          title: 'AI',
+          headerTitle: 'AI Assistant',
+          tabBarLabel: 'AI',
+          tabBarIcon: ({ color, size }) => <Icon as={Bot} size={size} color={color} />,
         }}
       />
       <Tabs.Screen

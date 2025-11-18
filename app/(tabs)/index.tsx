@@ -31,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { WebView } from 'react-native-webview';
 import { useHistory } from '@/lib/history-context';
 import { useSettings } from '@/lib/settings-context';
+import { getApiClient } from '@/lib/api-client';
 
 type RenderType = 'text' | 'svg' | 'png';
 
@@ -68,18 +69,19 @@ export default function Screen() {
 
   const loadPreview = React.useCallback(async (type: RenderType, id: string) => {
     try {
-      const url = `${apiUrl}/api/v1/render/${type}/${id}/raw`;
+      const apiClient = getApiClient(apiUrl);
 
       if (type === 'text') {
-        const response = await fetch(url);
-        const text = await response.text();
-        setRawContentText(text);
+        const response = await apiClient.get(`/api/v1/render/${type}/${id}/raw`, {
+          responseType: 'text',
+        });
+        setRawContentText(response.data);
         setRawContentUrl(null);
       } else if (type === 'svg') {
-        setRawContentUrl(url);
+        setRawContentUrl(`${apiUrl}/api/v1/render/${type}/${id}/raw`);
         setRawContentText(null);
       } else {
-        setRawContentUrl(url);
+        setRawContentUrl(`${apiUrl}/api/v1/render/${type}/${id}/raw`);
         setRawContentText(null);
       }
       setPreviewType(type);
@@ -117,19 +119,12 @@ export default function Screen() {
 
     try {
       const cleanedPumlText = removeThemePlain(textToRender);
-      const response = await fetch(`${apiUrl}/api/v1/render/${type}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ puml: cleanedPumlText }),
+      const apiClient = getApiClient(apiUrl);
+      const response = await apiClient.post<RenderResponse>(`/api/v1/render/${type}`, {
+        puml: cleanedPumlText,
       });
 
-      if (!response.ok) {
-        throw new Error(`Render failed: ${response.statusText}`);
-      }
-
-      const data: RenderResponse = await response.json();
+      const data = response.data;
       setRenderId(data.id);
       setRenderType(type);
       setPreviewType(type);

@@ -16,6 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
 import { generateDeeplink } from '@/lib/deeplink-utils';
 import { useSettings } from '@/lib/settings-context';
+import { getApiClient } from '@/lib/api-client';
 
 export default function HistoryScreen() {
   const router = useRouter();
@@ -113,19 +114,12 @@ export default function HistoryScreen() {
       setQrLoading(true);
       setQrTitle(item.title || 'PUML Diagram');
 
-      const response = await fetch(`${apiUrl}/api/v1/puml`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ puml: item.pumlCode }),
+      const apiClient = getApiClient(apiUrl);
+      const response = await apiClient.post<{ id: string }>('/api/v1/puml', {
+        puml: item.pumlCode,
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to create PUML: ${response.statusText}`);
-      }
-
-      const result = await response.json();
+      const result = response.data;
       if (!result.id) {
         throw new Error('Invalid response format');
       }

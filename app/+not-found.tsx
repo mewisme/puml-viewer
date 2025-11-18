@@ -15,13 +15,11 @@ export default function NotFoundScreen() {
   const router = useRouter();
 
   React.useEffect(() => {
-    // Check if we landed here due to a deeplink
     const checkDeeplink = async () => {
       const url = await Linking.getInitialURL();
       if (url) {
         const id = parseDeeplink(url);
         if (id) {
-          // Navigate to puml page with id
           router.replace(`/puml/${id}` as any);
         }
       }
