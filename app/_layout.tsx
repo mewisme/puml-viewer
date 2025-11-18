@@ -7,6 +7,7 @@ import * as React from 'react';
 import { NAV_THEME } from '@/lib/theme';
 import { HistoryProvider } from '@/lib/history-context';
 import { SettingsProvider } from '@/lib/settings-context';
+import { UpdatesProvider } from '@/lib/updates-context';
 import { ThemeProvider } from '@react-navigation/native';
 import { PortalHost } from '@rn-primitives/portal';
 import { Stack, useRouter } from 'expo-router';
@@ -54,19 +55,21 @@ export default function RootLayout() {
   const { colorScheme } = useColorScheme();
 
   return (
-    <SettingsProvider>
-      <HistoryProvider>
-        <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
-          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-          <DeeplinkHandler />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-            }}
-          />
-          <PortalHost />
-        </ThemeProvider>
-      </HistoryProvider>
-    </SettingsProvider>
+    <UpdatesProvider>
+      <SettingsProvider>
+        <HistoryProvider>
+          <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
+            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+            <DeeplinkHandler />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+              }}
+            />
+            <PortalHost />
+          </ThemeProvider>
+        </HistoryProvider>
+      </SettingsProvider>
+    </UpdatesProvider>
   );
 }

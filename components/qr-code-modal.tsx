@@ -26,20 +26,8 @@ export function QRCodeModal({ visible, onClose, url, title }: QRCodeModalProps) 
 
   const handleShare = async () => {
     try {
-      if (Platform.OS === 'web') {
-        if (typeof navigator !== 'undefined' && navigator.share) {
-          await navigator.share({
-            title: title || 'PUML Diagram',
-            text: url,
-          });
-        } else {
-          await Clipboard.setStringAsync(url);
-          RNAlert.alert('Success', 'URL copied to clipboard', [{ text: 'OK' }]);
-        }
-      } else {
-        await Clipboard.setStringAsync(url);
-        RNAlert.alert('Success', 'Deeplink copied to clipboard', [{ text: 'OK' }]);
-      }
+      await Clipboard.setStringAsync(url);
+      RNAlert.alert('Success', 'Deeplink copied to clipboard', [{ text: 'OK' }]);
     } catch (error) {
       console.error('Failed to share:', error);
       RNAlert.alert('Error', 'Failed to copy URL', [{ text: 'OK' }]);
@@ -53,31 +41,22 @@ export function QRCodeModal({ visible, onClose, url, title }: QRCodeModalProps) 
       const dataUrl = qrCodeRef.current.getDataURL();
       const filename = `qrcode-${title || 'puml'}-${Date.now()}.png`;
 
-      if (Platform.OS === 'web') {
-        const link = document.createElement('a');
-        link.href = dataUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      const base64Data = dataUrl.split(',')[1];
+      const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+
+      await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status === 'granted') {
+        await MediaLibrary.saveToLibraryAsync(fileUri);
+        RNAlert.alert('Success', 'QR code saved to gallery', [{ text: 'OK' }]);
       } else {
-        const base64Data = dataUrl.split(',')[1];
-        const fileUri = `${FileSystem.cacheDirectory}${filename}`;
-
-        await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-
-        const { status } = await MediaLibrary.requestPermissionsAsync();
-        if (status === 'granted') {
-          await MediaLibrary.saveToLibraryAsync(fileUri);
-          RNAlert.alert('Success', 'QR code saved to gallery', [{ text: 'OK' }]);
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri);
         } else {
-          if (await Sharing.isAvailableAsync()) {
-            await Sharing.shareAsync(fileUri);
-          } else {
-            RNAlert.alert('Error', 'Permission denied to save to gallery', [{ text: 'OK' }]);
-          }
+          RNAlert.alert('Error', 'Permission denied to save to gallery', [{ text: 'OK' }]);
         }
       }
     } catch (error) {

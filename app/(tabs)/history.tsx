@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import * as React from 'react';
 
-import { ActivityIndicator, Platform, Alert as RNAlert, ScrollView, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert as RNAlert, ScrollView, TouchableOpacity, View } from 'react-native';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CopyIcon, EditIcon, QrCodeIcon, StarIcon, TrashIcon } from 'lucide-react-native';
 import { HistoryItem, useHistory } from '@/lib/history-context';
@@ -15,8 +15,8 @@ import { QRCodeModal } from '@/components/qr-code-modal';
 import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
 import { generateDeeplink } from '@/lib/deeplink-utils';
-import { useSettings } from '@/lib/settings-context';
 import { getApiClient } from '@/lib/api-client';
+import { useSettings } from '@/lib/settings-context';
 
 export default function HistoryScreen() {
   const router = useRouter();

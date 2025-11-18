@@ -3,10 +3,11 @@ import * as Linking from 'expo-linking';
 import * as React from 'react';
 import * as Sharing from 'expo-sharing';
 
-import { ActivityIndicator, Image, Platform, Alert as RNAlert, ScrollView, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Alert as RNAlert, ScrollView, TouchableOpacity, View } from 'react-native';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+  Bookmark,
+  BookmarkCheck,
   ClipboardPasteIcon,
   DownloadIcon,
   ExternalLinkIcon,
@@ -18,6 +19,7 @@ import {
   TypeIcon,
   XIcon,
 } from 'lucide-react-native';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { File, Paths } from 'expo-file-system';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -29,9 +31,9 @@ import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
 import { Textarea } from '@/components/ui/textarea';
 import { WebView } from 'react-native-webview';
+import { getApiClient } from '@/lib/api-client';
 import { useHistory } from '@/lib/history-context';
 import { useSettings } from '@/lib/settings-context';
-import { getApiClient } from '@/lib/api-client';
 
 type RenderType = 'text' | 'svg' | 'png';
 
@@ -43,7 +45,7 @@ export default function Screen() {
   const params = useLocalSearchParams();
   const router = useRouter();
   const { apiUrl, autoRender } = useSettings();
-  const { addToHistory } = useHistory();
+  const { addToHistory, history, toggleFavorite } = useHistory();
   const [pumlText, setPumlText] = React.useState('');
   const autoRenderTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [renderId, setRenderId] = React.useState<string | null>(null);
@@ -54,6 +56,7 @@ export default function Screen() {
   const [isImageZoomed, setIsImageZoomed] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [pendingSaveRenderId, setPendingSaveRenderId] = React.useState<string | null>(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -103,9 +106,17 @@ export default function Screen() {
       setRenderId(id);
       setRenderType(type);
       setPreviewType(type);
-      loadPreview(type, id);
+
+      loadPreview(type, id).then(() => {
+        addToHistory({
+          pumlCode: cleanedCode,
+          renderId: id,
+          renderType: type,
+          previewUrl: type !== 'text' ? `${apiUrl}/api/v1/render/${type}/${id}/raw` : undefined,
+        });
+      });
     }
-  }, [params.loadCode, params.loadId, params.loadType, loadPreview, removeThemePlain]);
+  }, [params.loadCode, params.loadId, params.loadType, loadPreview, removeThemePlain, addToHistory, apiUrl]);
 
   const handleRender = React.useCallback(async (type: RenderType, text?: string) => {
     const textToRender = text ?? pumlText;
@@ -211,41 +222,19 @@ export default function Screen() {
     router.setParams({ loadId: undefined, loadType: undefined, loadCode: undefined });
   };
 
-  const handleCopyCode = async (code: string) => {
-    try {
-      await Clipboard.setStringAsync(code);
-      RNAlert.alert('Success', 'Code copied to clipboard', [{ text: 'OK' }]);
-    } catch (err) {
-      setError('Cannot copy to clipboard');
-    }
-  };
-
-
   const handleDownloadPng = async () => {
     if (!renderId) return;
 
     try {
       const url = `${apiUrl}/api/v1/render/png/${renderId}/raw`;
+      const file = new File(Paths.cache, `puml-${renderId}.png`);
+      const downloadedFile = await File.downloadFileAsync(url, file);
 
-      if (Platform.OS === 'web') {
-        if (typeof document !== 'undefined') {
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `puml-${renderId}.png`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
-      } else {
-        const file = new File(Paths.cache, `puml-${renderId}.png`);
-        const downloadedFile = await File.downloadFileAsync(url, file);
-
-        RNAlert.alert(
-          'Download successful',
-          `File saved at: ${downloadedFile.uri}`,
-          [{ text: 'OK' }]
-        );
-      }
+      RNAlert.alert(
+        'Download successful',
+        `File saved at: ${downloadedFile.uri}`,
+        [{ text: 'OK' }]
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Cannot download file');
     }
@@ -264,36 +253,71 @@ export default function Screen() {
     try {
       const url = `${apiUrl}/api/v1/render/${previewType}/${renderId}/raw`;
 
-      if (Platform.OS === 'web') {
-        if (typeof navigator !== 'undefined' && navigator.share) {
-          await navigator.share({
-            title: 'PlantUML Diagram',
-            url: url,
-          });
+      if (previewType === 'png' || previewType === 'svg') {
+        const file = new File(Paths.cache, `puml-${renderId}.${previewType === 'png' ? 'png' : 'svg'}`);
+        await File.downloadFileAsync(url, file);
+
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(file.uri);
         } else {
           await Clipboard.setStringAsync(url);
           RNAlert.alert('Success', 'URL copied to clipboard', [{ text: 'OK' }]);
         }
       } else {
-        if (previewType === 'png' || previewType === 'svg') {
-          const file = new File(Paths.cache, `puml-${renderId}.${previewType === 'png' ? 'png' : 'svg'}`);
-          await File.downloadFileAsync(url, file);
-
-          if (await Sharing.isAvailableAsync()) {
-            await Sharing.shareAsync(file.uri);
-          } else {
-            await Clipboard.setStringAsync(url);
-            RNAlert.alert('Success', 'URL copied to clipboard', [{ text: 'OK' }]);
-          }
-        } else {
-          await Clipboard.setStringAsync(rawContentText || '');
-          RNAlert.alert('Success', 'Text copied to clipboard', [{ text: 'OK' }]);
-        }
+        await Clipboard.setStringAsync(rawContentText || '');
+        RNAlert.alert('Success', 'Text copied to clipboard', [{ text: 'OK' }]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Cannot share');
     }
   };
+
+  React.useEffect(() => {
+    if (pendingSaveRenderId) {
+      const newItem = history.find((item) => item.renderId === pendingSaveRenderId);
+      if (newItem && !newItem.isFavorite) {
+        toggleFavorite(newItem.id).then(() => {
+          RNAlert.alert('Success', 'Saved to library', [{ text: 'OK' }]);
+          setPendingSaveRenderId(null);
+        });
+      }
+    }
+  }, [history, pendingSaveRenderId, toggleFavorite]);
+
+  const handleSave = async () => {
+    if (!renderId || !renderType || !pumlText.trim()) return;
+
+    try {
+      const existingItem = history.find((item) => item.renderId === renderId);
+
+      if (existingItem) {
+        await toggleFavorite(existingItem.id);
+        RNAlert.alert(
+          'Success',
+          existingItem.isFavorite ? 'Removed from library' : 'Saved to library',
+          [{ text: 'OK' }]
+        );
+      } else {
+        const cleanedPumlText = removeThemePlain(pumlText);
+        setPendingSaveRenderId(renderId);
+        await addToHistory({
+          pumlCode: cleanedPumlText,
+          renderId: renderId,
+          renderType: renderType,
+          previewUrl: renderType !== 'text' ? `${apiUrl}/api/v1/render/${renderType}/${renderId}/raw` : undefined,
+        });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Cannot save to library');
+      setPendingSaveRenderId(null);
+    }
+  };
+
+  const isSaved = React.useMemo(() => {
+    if (!renderId) return false;
+    const item = history.find((item) => item.renderId === renderId);
+    return item?.isFavorite || false;
+  }, [history, renderId]);
 
 
   return (
@@ -453,6 +477,10 @@ export default function Screen() {
               <Separator />
 
               <View className="flex-row gap-2">
+                <Button onPress={handleSave} variant={isSaved ? 'default' : 'secondary'} className="flex-1">
+                  <Icon as={isSaved ? BookmarkCheck : Bookmark} className="size-4" />
+                  <Text>{isSaved ? 'Saved' : 'Save'}</Text>
+                </Button>
                 <Button onPress={handleRawView} variant="ghost" className="flex-1">
                   <Icon as={ExternalLinkIcon} className="size-4" />
                   <Text>Raw View</Text>

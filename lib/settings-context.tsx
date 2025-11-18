@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
-import { APP_CONFIG, type AIProvider } from './app-config';
+import { APP_CONFIG, DEFAULT_API_URL, type AIProvider } from './app-config';
 
 const API_URL_KEY = '@puml_viewer_api_url';
 const AUTO_RENDER_KEY = '@puml_viewer_auto_render';
@@ -8,8 +8,6 @@ const AI_PROVIDER_KEY = '@puml_viewer_ai_provider';
 const AI_MODEL_KEY = '@puml_viewer_ai_model';
 const AI_API_KEY_KEY = '@puml_viewer_ai_api_key';
 const AI_CUSTOM_BASE_URL_KEY = '@puml_viewer_ai_custom_base_url';
-
-export const DEFAULT_API_URL = 'https://spuml.mewis.me';
 
 interface SettingsContextType {
   apiUrl: string;

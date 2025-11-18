@@ -2,11 +2,14 @@ import * as Linking from 'expo-linking';
 import * as React from 'react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DEFAULT_API_URL, useSettings } from '@/lib/settings-context';
+import { useSettings } from '@/lib/settings-context';
+import { useUpdates } from '@/lib/updates-context';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { APP_CONFIG, type AIProvider } from '@/lib/app-config';
+import { APP_CONFIG, DEFAULT_API_URL, type AIProvider } from '@/lib/app-config';
+import { ActivityIndicator, Alert as RNAlert } from 'react-native';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -38,6 +41,14 @@ export default function SettingsScreen() {
     setAiCustomBaseUrl,
   } = useSettings();
   const { colorScheme, toggleColorScheme } = useColorScheme();
+  const {
+    isUpdateAvailable,
+    isUpdatePending,
+    isChecking,
+    checkForUpdates,
+    downloadUpdate,
+    reloadApp,
+  } = useUpdates();
   const insets = useSafeAreaInsets();
   const scrollViewRef = React.useRef<ScrollView>(null);
   const [localApiUrl, setLocalApiUrl] = React.useState(apiUrl);
@@ -76,6 +87,58 @@ export default function SettingsScreen() {
   const handleToggleTheme = () => {
     toggleColorScheme();
     setIsDarkMode(!isDarkMode);
+  };
+
+  const handleCheckForUpdates = async () => {
+    try {
+      const hasUpdate = await checkForUpdates();
+      if (hasUpdate) {
+        RNAlert.alert('Update Available', 'A new update is available. Would you like to download it?', [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Download',
+            onPress: async () => {
+              const downloaded = await downloadUpdate();
+              if (downloaded) {
+                RNAlert.alert(
+                  'Update Downloaded',
+                  'The update has been downloaded. The app will restart to apply the update.',
+                  [
+                    {
+                      text: 'Restart Now',
+                      onPress: async () => {
+                        await reloadApp();
+                      },
+                    },
+                    { text: 'Later', style: 'cancel' },
+                  ]
+                );
+              } else {
+                RNAlert.alert('Error', 'Failed to download update. Please try again later.', [{ text: 'OK' }]);
+              }
+            },
+          },
+        ]);
+      } else {
+        RNAlert.alert('No Updates', 'You are using the latest version.', [{ text: 'OK' }]);
+      }
+    } catch (error) {
+      RNAlert.alert('Error', 'Failed to check for updates. Please try again later.', [{ text: 'OK' }]);
+    }
+  };
+
+  const handleApplyUpdate = async () => {
+    if (isUpdatePending) {
+      RNAlert.alert('Restart Required', 'The app will restart to apply the update.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restart Now',
+          onPress: async () => {
+            await reloadApp();
+          },
+        },
+      ]);
+    }
   };
 
   const handleOpenProjectLink = () => {
@@ -208,6 +271,43 @@ export default function SettingsScreen() {
                 </View>
                 <Switch checked={isDarkMode} onCheckedChange={handleToggleTheme} />
               </View>
+            </View>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>App Updates</CardTitle>
+          </CardHeader>
+          <CardContent className="gap-4">
+            <View className="gap-2">
+              <Text className="text-sm text-muted-foreground">
+                Check for app updates and apply them when available.
+              </Text>
+              <View className="flex-row gap-2">
+                <Button
+                  onPress={handleCheckForUpdates}
+                  disabled={isChecking || isUpdatePending}
+                  variant="outline"
+                  className="flex-1">
+                  {isChecking ? (
+                    <ActivityIndicator size="small" />
+                  ) : (
+                    <Text>Check for Updates</Text>
+                  )}
+                </Button>
+                {isUpdatePending && (
+                  <Button onPress={handleApplyUpdate} variant="default" className="flex-1">
+                    <Text>Apply Update</Text>
+                  </Button>
+                )}
+              </View>
+              {isUpdateAvailable && !isUpdatePending && (
+                <Text className="text-xs text-primary">Update available! Download it to apply.</Text>
+              )}
+              {isUpdatePending && (
+                <Text className="text-xs text-primary">Update downloaded! Restart the app to apply.</Text>
+              )}
             </View>
           </CardContent>
         </Card>

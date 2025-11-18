@@ -2,7 +2,7 @@ import * as Linking from 'expo-linking';
 import * as React from 'react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ExternalLinkIcon, GithubIcon, MailIcon } from 'lucide-react-native';
+import { ExternalLinkIcon, GithubIcon } from 'lucide-react-native';
 import { ScrollView, TouchableOpacity, View } from 'react-native';
 
 import { APP_CONFIG } from '@/lib/app-config';
@@ -10,10 +10,8 @@ import { Icon } from '@/components/ui/icon';
 import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
 import { useHistory } from '@/lib/history-context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AboutScreen() {
-  const insets = useSafeAreaInsets();
   const { getStatistics } = useHistory();
   const stats = getStatistics();
 
