@@ -1,6 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
 import * as React from 'react';
+import * as Sharing from 'expo-sharing';
 
 import { ActivityIndicator, Image, Platform, Alert as RNAlert, ScrollView, TouchableOpacity, View } from 'react-native';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -12,33 +13,24 @@ import {
   FileImageIcon,
   FileTextIcon,
   ImageIcon,
-  MoonStarIcon,
   PlayIcon,
-  SunIcon,
+  ShareIcon,
   TypeIcon,
+  XIcon,
 } from 'lucide-react-native';
 import { File, Paths } from 'expo-file-system';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import ImageViewing from 'react-native-image-viewing';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Stack } from 'expo-router';
 import { Text } from '@/components/ui/text';
 import { Textarea } from '@/components/ui/textarea';
 import { WebView } from 'react-native-webview';
-import { cn } from '@/lib/utils';
-import { useColorScheme } from 'nativewind';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const SCREEN_OPTIONS = {
-  title: 'PUML Viewer',
-  headerTransparent: true,
-  headerRight: () => <ThemeToggle />,
-};
-
-const API_BASE_URL = 'https://spuml.mewis.me';
+import { useHistory } from '@/lib/history-context';
+import { useSettings } from '@/lib/settings-context';
 
 type RenderType = 'text' | 'svg' | 'png';
 
@@ -47,8 +39,12 @@ interface RenderResponse {
 }
 
 export default function Screen() {
-  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams();
+  const router = useRouter();
+  const { apiUrl, autoRender } = useSettings();
+  const { addToHistory } = useHistory();
   const [pumlText, setPumlText] = React.useState('');
+  const autoRenderTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [renderId, setRenderId] = React.useState<string | null>(null);
   const [renderType, setRenderType] = React.useState<RenderType | null>(null);
   const [previewType, setPreviewType] = React.useState<RenderType | null>(null);
@@ -58,58 +54,21 @@ export default function Screen() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const handlePaste = async () => {
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        setIsImageZoomed(false);
+      };
+    }, [])
+  );
+
+  const removeThemePlain = React.useCallback((text: string): string => {
+    return text.replace(/!theme\s+plain\s*/gi, '');
+  }, []);
+
+  const loadPreview = React.useCallback(async (type: RenderType, id: string) => {
     try {
-      const text = await Clipboard.getStringAsync();
-      if (text) {
-        setPumlText(text);
-        setError(null);
-      }
-    } catch (err) {
-      setError('Không thể đọc clipboard');
-    }
-  };
-
-  const handleRender = async (type: RenderType) => {
-    if (!pumlText.trim()) {
-      setError('Vui lòng nhập PUML code');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/render/${type}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ puml: pumlText }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Render failed: ${response.statusText}`);
-      }
-
-      const data: RenderResponse = await response.json();
-      setRenderId(data.id);
-      setRenderType(type);
-      setPreviewType(type);
-
-      await loadPreview(type, data.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi render');
-      setRawContentUrl(null);
-      setRawContentText(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadPreview = async (type: RenderType, id: string) => {
-    try {
-      const url = `${API_BASE_URL}/api/v1/render/${type}/${id}/raw`;
+      const url = `${apiUrl}/api/v1/render/${type}/${id}/raw`;
 
       if (type === 'text') {
         const response = await fetch(url);
@@ -125,15 +84,153 @@ export default function Screen() {
       }
       setPreviewType(type);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể tải preview');
+      setError(err instanceof Error ? err.message : 'Cannot load preview');
+    }
+  }, [apiUrl]);
+
+  React.useEffect(() => {
+    if (params.loadCode && params.loadId && params.loadType) {
+      const code = decodeURIComponent(
+        Array.isArray(params.loadCode) ? params.loadCode[0] : params.loadCode
+      );
+      const id = Array.isArray(params.loadId) ? params.loadId[0] : params.loadId;
+      const type = (Array.isArray(params.loadType) ? params.loadType[0] : params.loadType) as RenderType;
+
+      const cleanedCode = removeThemePlain(code);
+      setPumlText(cleanedCode);
+      setRenderId(id);
+      setRenderType(type);
+      setPreviewType(type);
+      loadPreview(type, id);
+    }
+  }, [params.loadCode, params.loadId, params.loadType, loadPreview, removeThemePlain]);
+
+  const handleRender = React.useCallback(async (type: RenderType, text?: string) => {
+    const textToRender = text ?? pumlText;
+    if (!textToRender.trim()) {
+      setError('Please enter PUML code');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const cleanedPumlText = removeThemePlain(textToRender);
+      const response = await fetch(`${apiUrl}/api/v1/render/${type}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ puml: cleanedPumlText }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Render failed: ${response.statusText}`);
+      }
+
+      const data: RenderResponse = await response.json();
+      setRenderId(data.id);
+      setRenderType(type);
+      setPreviewType(type);
+
+      await loadPreview(type, data.id);
+
+      await addToHistory({
+        pumlCode: removeThemePlain(textToRender),
+        renderId: data.id,
+        renderType: type,
+        previewUrl: type !== 'text' ? `${apiUrl}/api/v1/render/${type}/${data.id}/raw` : undefined,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while rendering');
+      setRawContentUrl(null);
+      setRawContentText(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pumlText, apiUrl, loadPreview, addToHistory, removeThemePlain]);
+
+  const isValidPumlFormat = React.useCallback((text: string): boolean => {
+    const trimmed = text.trim();
+    return trimmed.includes('@startuml') && trimmed.includes('@enduml');
+  }, []);
+
+  const triggerAutoRender = React.useCallback(() => {
+    if (!autoRender || !pumlText.trim() || !isValidPumlFormat(pumlText)) {
+      return;
+    }
+
+    if (autoRenderTimeoutRef.current) {
+      clearTimeout(autoRenderTimeoutRef.current);
+    }
+
+    autoRenderTimeoutRef.current = setTimeout(() => {
+      if (!isLoading && isValidPumlFormat(pumlText)) {
+        handleRender('png');
+      }
+    }, 300);
+  }, [autoRender, pumlText, isLoading, isValidPumlFormat, handleRender]);
+
+  const handlePaste = async () => {
+    try {
+      const text = await Clipboard.getStringAsync();
+      if (text) {
+        const cleanedText = removeThemePlain(text);
+        setPumlText(cleanedText);
+        setError(null);
+        if (autoRender && isValidPumlFormat(cleanedText)) {
+          setTimeout(() => {
+            handleRender('png', cleanedText);
+          }, 500);
+        }
+      }
+    } catch (err) {
+      setError('Cannot read clipboard');
     }
   };
+
+  const handleTextChange = (text: string) => {
+    const cleanedText = removeThemePlain(text);
+    setPumlText(cleanedText);
+    setError(null);
+    triggerAutoRender();
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (autoRenderTimeoutRef.current) {
+        clearTimeout(autoRenderTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleClear = () => {
+    setPumlText('');
+    setRenderId(null);
+    setRenderType(null);
+    setPreviewType(null);
+    setRawContentUrl(null);
+    setRawContentText(null);
+    setError(null);
+    router.setParams({ loadId: undefined, loadType: undefined, loadCode: undefined });
+  };
+
+  const handleCopyCode = async (code: string) => {
+    try {
+      await Clipboard.setStringAsync(code);
+      RNAlert.alert('Success', 'Code copied to clipboard', [{ text: 'OK' }]);
+    } catch (err) {
+      setError('Cannot copy to clipboard');
+    }
+  };
+
 
   const handleDownloadPng = async () => {
     if (!renderId) return;
 
     try {
-      const url = `${API_BASE_URL}/api/v1/render/png/${renderId}/raw`;
+      const url = `${apiUrl}/api/v1/render/png/${renderId}/raw`;
 
       if (Platform.OS === 'web') {
         if (typeof document !== 'undefined') {
@@ -149,40 +246,77 @@ export default function Screen() {
         const downloadedFile = await File.downloadFileAsync(url, file);
 
         RNAlert.alert(
-          'Tải xuống thành công',
-          `File đã được lưu tại: ${downloadedFile.uri}`,
+          'Download successful',
+          `File saved at: ${downloadedFile.uri}`,
           [{ text: 'OK' }]
         );
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể tải xuống file');
+      setError(err instanceof Error ? err.message : 'Cannot download file');
     }
   };
 
   const handleRawView = () => {
     if (!renderId || !previewType) return;
 
-    const url = `${API_BASE_URL}/api/v1/render/${previewType}/${renderId}/raw`;
+    const url = `${apiUrl}/api/v1/render/${previewType}/${renderId}/raw`;
     Linking.openURL(url);
   };
 
+  const handleShare = async () => {
+    if (!renderId || !previewType) return;
+
+    try {
+      const url = `${apiUrl}/api/v1/render/${previewType}/${renderId}/raw`;
+
+      if (Platform.OS === 'web') {
+        if (typeof navigator !== 'undefined' && navigator.share) {
+          await navigator.share({
+            title: 'PlantUML Diagram',
+            url: url,
+          });
+        } else {
+          await Clipboard.setStringAsync(url);
+          RNAlert.alert('Success', 'URL copied to clipboard', [{ text: 'OK' }]);
+        }
+      } else {
+        if (previewType === 'png' || previewType === 'svg') {
+          const file = new File(Paths.cache, `puml-${renderId}.${previewType === 'png' ? 'png' : 'svg'}`);
+          await File.downloadFileAsync(url, file);
+
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(file.uri);
+          } else {
+            await Clipboard.setStringAsync(url);
+            RNAlert.alert('Success', 'URL copied to clipboard', [{ text: 'OK' }]);
+          }
+        } else {
+          await Clipboard.setStringAsync(rawContentText || '');
+          RNAlert.alert('Success', 'Text copied to clipboard', [{ text: 'OK' }]);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Cannot share');
+    }
+  };
+
+
   return (
     <>
-      <Stack.Screen options={SCREEN_OPTIONS} />
       <ScrollView
         className="flex-1"
-        contentContainerClassName="p-4 gap-4 mt-10"
-        contentContainerStyle={{ paddingTop: insets.top + 16 }}>
+        contentContainerClassName="p-4 gap-4"
+      >
         <Card>
           <CardHeader>
-            <CardTitle>Nhập PUML Code</CardTitle>
+            <CardTitle>Enter PUML Code</CardTitle>
           </CardHeader>
           <CardContent className="gap-4">
             <View className="gap-2">
               <Label>PlantUML Diagram</Label>
               <Textarea
                 value={pumlText}
-                onChangeText={setPumlText}
+                onChangeText={handleTextChange}
                 placeholder="@startuml&#10;Bob -> Alice : hello&#10;@enduml"
                 className="min-h-64"
                 numberOfLines={20}
@@ -191,7 +325,7 @@ export default function Screen() {
 
             {error && (
               <Alert variant="destructive" icon={FileTextIcon}>
-                <AlertTitle>Lỗi</AlertTitle>
+                <AlertTitle>Error</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
@@ -200,6 +334,9 @@ export default function Screen() {
               <Button onPress={handlePaste} variant="outline" className="flex-1">
                 <Icon as={ClipboardPasteIcon} className="size-4" />
                 <Text>Paste</Text>
+              </Button>
+              <Button onPress={handleClear} variant="outline" disabled={!pumlText.trim()}>
+                <Icon as={XIcon} className="size-4" />
               </Button>
               <Button
                 onPress={() => handleRender('png')}
@@ -221,7 +358,7 @@ export default function Screen() {
         {renderId && renderType && (
           <Card>
             <CardHeader>
-              <CardTitle>Kết quả Render</CardTitle>
+              <CardTitle>Render Result</CardTitle>
             </CardHeader>
             <CardContent className="gap-4">
               {previewType && (
@@ -280,7 +417,7 @@ export default function Screen() {
               </View>
 
               <View className="gap-2">
-                <Text className="text-sm font-medium">Xem preview:</Text>
+                <Text className="text-sm font-medium">View preview:</Text>
                 <View className="flex-row gap-2">
                   <Button
                     onPress={() => renderId && loadPreview('png', renderId)}
@@ -313,17 +450,23 @@ export default function Screen() {
                 <View className="gap-2">
                   <Button onPress={handleDownloadPng} variant="secondary">
                     <Icon as={DownloadIcon} className="size-4" />
-                    <Text>Tải xuống PNG</Text>
+                    <Text>Download PNG</Text>
                   </Button>
                 </View>
               )}
 
               <Separator />
 
-              <Button onPress={handleRawView} variant="ghost">
-                <Icon as={ExternalLinkIcon} className="size-4" />
-                <Text>Raw View</Text>
-              </Button>
+              <View className="flex-row gap-2">
+                <Button onPress={handleRawView} variant="ghost" className="flex-1">
+                  <Icon as={ExternalLinkIcon} className="size-4" />
+                  <Text>Raw View</Text>
+                </Button>
+                <Button onPress={handleShare} variant="ghost" className="flex-1">
+                  <Icon as={ShareIcon} className="size-4" />
+                  <Text>Share</Text>
+                </Button>
+              </View>
             </CardContent>
           </Card>
         )}
@@ -343,21 +486,3 @@ export default function Screen() {
   );
 }
 
-const THEME_ICONS = {
-  light: SunIcon,
-  dark: MoonStarIcon,
-};
-
-function ThemeToggle() {
-  const { colorScheme, toggleColorScheme } = useColorScheme();
-
-  return (
-    <Button
-      onPressIn={toggleColorScheme}
-      size="icon"
-      variant="ghost"
-      className="ios:size-9 rounded-full web:mx-4 bg-background">
-      <Icon as={THEME_ICONS[colorScheme ?? 'light']} className="size-5" />
-    </Button>
-  );
-}

@@ -39,3 +39,16 @@ yarn-error.*
 
 expo-env.d.ts
 # @end expo-cli
+
+# EAS
+.eas/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
