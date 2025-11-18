@@ -84,6 +84,14 @@ lib/
 
 The app connects to the PUML Render Server API (default: `https://spuml.mewis.me`). The API URL can be configured in Settings.
 
+**PUML Server Repository**: [https://github.com/mewisme/puml-server](https://github.com/mewisme/puml-server)
+
+You can run the PUML server locally and configure the app to use it instead of the default server. This is useful for:
+- Custom PlantUML configurations
+- Offline development
+- Testing new features
+- Privacy-sensitive workflows
+
 Endpoints used:
 - POST `/api/v1/render/{type}` - Render PUML to specified format
 - GET `/api/v1/render/{type}/{id}/raw` - Get rendered content
@@ -92,4 +100,6 @@ Endpoints used:
 
 ## License
 
-Private
+MIT License - Copyright (c) 2025 Mew
+
+See [LICENSE](LICENSE) for more information.
