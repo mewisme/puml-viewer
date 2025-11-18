@@ -27,6 +27,9 @@ export default {
     },
     package: 'me.mewis.pumlviewer',
   },
+  runtimeVersion: {
+    policy: "appVersion"
+  },
   plugins: ['expo-router', 'expo-updates'],
   experiments: {
     typedRoutes: true,
