@@ -2,6 +2,16 @@ import * as Clipboard from 'expo-clipboard';
 import * as React from 'react';
 
 import { ActivityIndicator, Alert as RNAlert, ScrollView, TouchableOpacity, View } from 'react-native';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CopyIcon, EditIcon, QrCodeIcon, StarIcon, TrashIcon } from 'lucide-react-native';
 import { HistoryItem, useHistory } from '@/lib/history-context';
@@ -17,8 +27,10 @@ import { Text } from '@/components/ui/text';
 import { generateDeeplink } from '@/lib/deeplink-utils';
 import { getApiClient } from '@/lib/api-client';
 import { useSettings } from '@/lib/settings-context';
+import { useTranslation } from 'react-i18next';
 
 export default function HistoryScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { apiUrl } = useSettings();
   const { history, favorites, removeFromHistory, clearHistory, toggleFavorite, updateHistoryItem } = useHistory();
@@ -30,6 +42,9 @@ export default function HistoryScreen() {
   const [qrLoading, setQrLoading] = React.useState(false);
   const [editingTitleId, setEditingTitleId] = React.useState<string | null>(null);
   const [editingTitle, setEditingTitle] = React.useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [deleteItemId, setDeleteItemId] = React.useState<string | null>(null);
+  const [clearAllDialogOpen, setClearAllDialogOpen] = React.useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -44,36 +59,32 @@ export default function HistoryScreen() {
   const handleCopyCode = async (code: string) => {
     try {
       await Clipboard.setStringAsync(code);
-      RNAlert.alert('Success', 'Code copied to clipboard', [{ text: 'OK' }]);
+      RNAlert.alert(t('history.success'), t('history.codeCopiedToClipboard'), [{ text: 'OK' }]);
     } catch (err) {
-      RNAlert.alert('Error', 'Cannot copy to clipboard', [{ text: 'OK' }]);
+      RNAlert.alert(t('history.error'), t('history.cannotCopyToClipboard'), [{ text: 'OK' }]);
     }
   };
 
   const handleDelete = async (id: string) => {
-    RNAlert.alert('Delete', 'Are you sure you want to delete this item?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await removeFromHistory(id);
-        },
-      },
-    ]);
+    setDeleteItemId(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteItemId) {
+      await removeFromHistory(deleteItemId);
+      setDeleteItemId(null);
+    }
+    setDeleteDialogOpen(false);
   };
 
   const handleClearAll = () => {
-    RNAlert.alert('Clear All', 'Are you sure you want to clear all history?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear All',
-        style: 'destructive',
-        onPress: async () => {
-          await clearHistory();
-        },
-      },
-    ]);
+    setClearAllDialogOpen(true);
+  };
+
+  const handleConfirmClearAll = async () => {
+    await clearHistory();
+    setClearAllDialogOpen(false);
   };
 
   const handleLoadItem = async (item: HistoryItem) => {
@@ -86,7 +97,6 @@ export default function HistoryScreen() {
       },
     });
   };
-
 
   const filteredHistory = React.useMemo(() => {
     let filtered = history;
@@ -112,7 +122,7 @@ export default function HistoryScreen() {
   const handleShowQRCode = async (item: HistoryItem) => {
     try {
       setQrLoading(true);
-      setQrTitle(item.title || 'PUML Diagram');
+      setQrTitle(item.title || t('history.pumlDiagram'));
 
       const apiClient = getApiClient(apiUrl);
       const response = await apiClient.post<{ id: string }>('/api/v1/puml', {
@@ -128,7 +138,7 @@ export default function HistoryScreen() {
       setQrUrl(deeplink);
       setQrModalVisible(true);
     } catch (err) {
-      RNAlert.alert('Error', err instanceof Error ? err.message : 'Failed to generate QR code', [{ text: 'OK' }]);
+      RNAlert.alert(t('history.error'), err instanceof Error ? err.message : t('history.failedToGenerateQrCode'), [{ text: 'OK' }]);
     } finally {
       setQrLoading(false);
     }
@@ -157,32 +167,32 @@ export default function HistoryScreen() {
         contentContainerClassName="p-4 gap-4">
         <Card>
           <CardHeader className="flex-row items-center justify-between">
-            <CardTitle>History</CardTitle>
+            <CardTitle>{t('history.title')}</CardTitle>
             {history.length > 0 && (
               <Button onPress={handleClearAll} variant="ghost" size="sm">
-                <Text className="text-sm text-destructive">Clear All</Text>
+                <Text className="text-sm text-destructive">{t('history.clearAll')}</Text>
               </Button>
             )}
           </CardHeader>
           <CardContent className="gap-4">
             <View className="gap-4">
               <View className="gap-2">
-                <Label>Search</Label>
+                <Label>{t('history.search')}</Label>
                 <Input
                   value={searchQuery}
                   onChangeText={setSearchQuery}
-                  placeholder="Search..."
+                  placeholder={t('history.searchPlaceholder')}
                 />
               </View>
               <View className="gap-2">
-                <Label>Filter</Label>
+                <Label>{t('history.filter')}</Label>
                 <View className="flex-row gap-2">
                   <Button
                     onPress={() => setFilterType('all')}
                     variant={filterType === 'all' ? 'default' : 'outline'}
                     size="sm"
                     className="flex-1">
-                    <Text>All</Text>
+                    <Text>{t('history.all')}</Text>
                   </Button>
                   <Button
                     onPress={() => setFilterType('favorites')}
@@ -190,7 +200,7 @@ export default function HistoryScreen() {
                     size="sm"
                     className="flex-1">
                     <Icon as={StarIcon} className="size-4" />
-                    <Text>Favorites</Text>
+                    <Text>{t('history.favorites')}</Text>
                   </Button>
                 </View>
                 <View className="flex-row gap-2">
@@ -224,7 +234,7 @@ export default function HistoryScreen() {
             {filteredHistory.length === 0 ? (
               <View className="py-8">
                 <Text className="text-center text-muted-foreground">
-                  {history.length === 0 ? 'No history yet' : 'No items found'}
+                  {history.length === 0 ? t('history.noHistoryYet') : t('history.noItemsFound')}
                 </Text>
               </View>
             ) : (
@@ -235,7 +245,7 @@ export default function HistoryScreen() {
                       <Input
                         value={editingTitle}
                         onChangeText={setEditingTitle}
-                        placeholder="Enter title (optional)"
+                        placeholder={t('history.enterTitleOptional')}
                         autoFocus
                       />
                       <View className="flex-row gap-2">
@@ -244,14 +254,14 @@ export default function HistoryScreen() {
                           variant="default"
                           size="sm"
                           className="flex-1">
-                          <Text>Save</Text>
+                          <Text>{t('history.save')}</Text>
                         </Button>
                         <Button
                           onPress={handleCancelEditTitle}
                           variant="outline"
                           size="sm"
                           className="flex-1">
-                          <Text>Cancel</Text>
+                          <Text>{t('history.cancel')}</Text>
                         </Button>
                       </View>
                     </View>
@@ -303,7 +313,7 @@ export default function HistoryScreen() {
                       size="sm"
                       className="flex-1">
                       <Icon as={CopyIcon} className="size-4" />
-                      <Text>Copy</Text>
+                      <Text>{t('history.copy')}</Text>
                     </Button>
                     <Button
                       onPress={() => handleShowQRCode(item)}
@@ -316,7 +326,7 @@ export default function HistoryScreen() {
                       ) : (
                         <>
                           <Icon as={QrCodeIcon} className="size-4" />
-                          <Text>QR</Text>
+                          <Text>{t('history.qr')}</Text>
                         </>
                       )}
                     </Button>
@@ -326,7 +336,7 @@ export default function HistoryScreen() {
                       size="sm"
                       className="flex-1">
                       <Icon as={TrashIcon} className="size-4" />
-                      <Text>Delete</Text>
+                      <Text>{t('history.delete')}</Text>
                     </Button>
                   </View>
                 </View>
@@ -341,6 +351,40 @@ export default function HistoryScreen() {
         url={qrUrl}
         title={qrTitle}
       />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('history.delete')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('history.deleteConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onPress={() => setDeleteDialogOpen(false)}>
+              <Text>{t('history.cancel')}</Text>
+            </AlertDialogCancel>
+            <AlertDialogAction onPress={handleConfirmDelete} className="bg-destructive">
+              <Text>{t('history.delete')}</Text>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={clearAllDialogOpen} onOpenChange={setClearAllDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('history.clearAll')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('history.clearAllConfirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onPress={() => setClearAllDialogOpen(false)}>
+              <Text>{t('history.cancel')}</Text>
+            </AlertDialogCancel>
+            <AlertDialogAction onPress={handleConfirmClearAll} className="bg-destructive">
+              <Text>{t('history.clearAll')}</Text>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

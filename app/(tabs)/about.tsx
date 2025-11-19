@@ -10,8 +10,10 @@ import { Icon } from '@/components/ui/icon';
 import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
 import { useHistory } from '@/lib/history-context';
+import { useTranslation } from 'react-i18next';
 
 export default function AboutScreen() {
+  const { t } = useTranslation();
   const { getStatistics } = useHistory();
   const stats = getStatistics();
 
@@ -27,7 +29,7 @@ export default function AboutScreen() {
       >
         <Card>
           <CardHeader>
-            <CardTitle>About</CardTitle>
+            <CardTitle>{t('about.title')}</CardTitle>
           </CardHeader>
           <CardContent className="gap-4">
             <View className="gap-2">
@@ -41,7 +43,7 @@ export default function AboutScreen() {
             <Separator />
 
             <View className="gap-2">
-              <Text className="text-sm text-muted-foreground">Made by <Text className="font-bold">{APP_CONFIG.author}</Text> with love.</Text>
+              <Text className="text-sm text-muted-foreground">{t('about.madeBy')} <Text className="font-bold">{APP_CONFIG.author}</Text> {t('about.withLove')}</Text>
             </View>
 
             <Separator />
@@ -59,10 +61,10 @@ export default function AboutScreen() {
             <Separator />
 
             <View className="gap-2">
-              <Text className="text-sm font-medium">Statistics</Text>
+              <Text className="text-sm font-medium">{t('about.statistics')}</Text>
               <View className="rounded-lg border border-border bg-muted p-3">
                 <View className="flex-row justify-between">
-                  <Text className="text-sm text-muted-foreground">Total Diagrams</Text>
+                  <Text className="text-sm text-muted-foreground">{t('about.totalDiagrams')}</Text>
                   <Text className="text-sm font-medium">{stats.total}</Text>
                 </View>
                 <View className="mt-2 flex-row justify-between">
@@ -78,7 +80,7 @@ export default function AboutScreen() {
                   <Text className="text-sm font-medium">{stats.byType.text}</Text>
                 </View>
                 <View className="mt-2 flex-row justify-between">
-                  <Text className="text-sm text-muted-foreground">Favorites</Text>
+                  <Text className="text-sm text-muted-foreground">{t('about.favorites')}</Text>
                   <Text className="text-sm font-medium">{stats.favorites}</Text>
                 </View>
               </View>

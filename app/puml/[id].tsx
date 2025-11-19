@@ -11,8 +11,10 @@ import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { useSettings } from '@/lib/settings-context';
 import { getApiClient } from '@/lib/api-client';
+import { useTranslation } from 'react-i18next';
 
 export default function PumlViewerScreen() {
+  const { t } = useTranslation();
   const params = useLocalSearchParams();
   const router = useRouter();
   const { apiUrl } = useSettings();
@@ -66,8 +68,8 @@ export default function PumlViewerScreen() {
     <>
       <Stack.Screen
         options={{
-          title: 'PUML Viewer',
-          headerTitle: 'PUML Viewer',
+          title: t('pumlViewer.title'),
+          headerTitle: t('pumlViewer.title'),
           headerTransparent: false,
           headerShown: true,
           headerBackVisible: false,
@@ -78,7 +80,7 @@ export default function PumlViewerScreen() {
           <Card>
             <CardContent className="items-center gap-4 p-6">
               <ActivityIndicator size="large" />
-              <Text>Loading PUML diagram...</Text>
+              <Text>{t('pumlViewer.loadingPumlDiagram')}</Text>
             </CardContent>
           </Card>
         </View>
@@ -87,16 +89,16 @@ export default function PumlViewerScreen() {
         <View className="flex-1 p-4">
           <Card>
             <CardHeader>
-              <CardTitle>Error</CardTitle>
+              <CardTitle>{t('pumlViewer.error')}</CardTitle>
             </CardHeader>
             <CardContent className="gap-4">
               <Alert variant="destructive" icon={FileTextIcon}>
-                <AlertTitle>Failed to load diagram</AlertTitle>
+                <AlertTitle>{t('pumlViewer.failedToLoadDiagram')}</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
               <Button onPress={() => router.replace('/(tabs)')} className="w-full">
                 <Icon as={Home} className="size-4" />
-                <Text>Go to Home</Text>
+                <Text>{t('pumlViewer.goToHome')}</Text>
               </Button>
             </CardContent>
           </Card>

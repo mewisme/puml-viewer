@@ -5,11 +5,11 @@ export interface AIProviderConfig {
   models: string[];
 }
 
-export const DEFAULT_API_URL = 'https://spuml.mewis.me';
+export const DEFAULT_API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:7235';
 
 export const APP_CONFIG = {
   name: 'PUML Viewer',
-  version: '0.0.5',
+  version: '0.0.6',
   description: 'A mobile application for viewing and rendering PlantUML diagrams. Create, preview, and manage your PlantUML diagrams on the go.',
   author: 'Mew',
   defaultApiUrl: DEFAULT_API_URL,

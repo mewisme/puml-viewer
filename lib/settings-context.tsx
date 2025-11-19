@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
 import { APP_CONFIG, DEFAULT_API_URL, type AIProvider } from './app-config';
+import * as Localization from 'expo-localization';
+import i18n from './i18n';
 
 const API_URL_KEY = '@puml_viewer_api_url';
 const AUTO_RENDER_KEY = '@puml_viewer_auto_render';
@@ -8,6 +10,8 @@ const AI_PROVIDER_KEY = '@puml_viewer_ai_provider';
 const AI_MODEL_KEY = '@puml_viewer_ai_model';
 const AI_API_KEY_KEY = '@puml_viewer_ai_api_key';
 const AI_CUSTOM_BASE_URL_KEY = '@puml_viewer_ai_custom_base_url';
+const LANGUAGE_KEY = '@puml_viewer_language';
+const ENABLE_HAPTICS_KEY = '@puml_viewer_enable_haptics';
 
 interface SettingsContextType {
   apiUrl: string;
@@ -22,6 +26,10 @@ interface SettingsContextType {
   setAiApiKey: (key: string) => Promise<void>;
   aiCustomBaseUrl: string;
   setAiCustomBaseUrl: (url: string) => Promise<void>;
+  language: string;
+  setLanguage: (lang: string) => Promise<void>;
+  enableHaptics: boolean;
+  setEnableHaptics: (enabled: boolean) => Promise<void>;
 }
 
 const SettingsContext = React.createContext<SettingsContextType | undefined>(undefined);
@@ -35,6 +43,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [aiModel, setAiModelState] = React.useState<string>(APP_CONFIG.ai.defaultModel);
   const [aiApiKey, setAiApiKeyState] = React.useState<string>('');
   const [aiCustomBaseUrl, setAiCustomBaseUrlState] = React.useState<string>('');
+  const [language, setLanguageState] = React.useState<string>(
+    Localization.getLocales()[0]?.languageCode || 'en'
+  );
+  const [enableHaptics, setEnableHapticsState] = React.useState<boolean>(true);
 
   React.useEffect(() => {
     loadSettings();
@@ -42,7 +54,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const loadSettings = async () => {
     try {
-      const [savedUrl, savedAutoRender, savedAiProvider, savedAiModel, savedAiApiKey, savedAiCustomBaseUrl] =
+      const [savedUrl, savedAutoRender, savedAiProvider, savedAiModel, savedAiApiKey, savedAiCustomBaseUrl, savedLanguage, savedEnableHaptics] =
         await Promise.all([
           AsyncStorage.getItem(API_URL_KEY),
           AsyncStorage.getItem(AUTO_RENDER_KEY),
@@ -50,6 +62,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           AsyncStorage.getItem(AI_MODEL_KEY),
           AsyncStorage.getItem(AI_API_KEY_KEY),
           AsyncStorage.getItem(AI_CUSTOM_BASE_URL_KEY),
+          AsyncStorage.getItem(LANGUAGE_KEY),
+          AsyncStorage.getItem(ENABLE_HAPTICS_KEY),
         ]);
       if (savedUrl) {
         setApiUrlState(savedUrl);
@@ -74,6 +88,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       }
       if (savedAiCustomBaseUrl) {
         setAiCustomBaseUrlState(savedAiCustomBaseUrl);
+      }
+      if (savedLanguage) {
+        setLanguageState(savedLanguage);
+        i18n.changeLanguage(savedLanguage);
+      } else {
+        const deviceLanguage = Localization.getLocales()[0]?.languageCode || 'en';
+        setLanguageState(deviceLanguage);
+        i18n.changeLanguage(deviceLanguage);
+      }
+      if (savedEnableHaptics !== null) {
+        setEnableHapticsState(savedEnableHaptics === 'true');
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -151,6 +176,27 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const setLanguage = async (lang: string) => {
+    try {
+      await AsyncStorage.setItem(LANGUAGE_KEY, lang);
+      setLanguageState(lang);
+      i18n.changeLanguage(lang);
+    } catch (error) {
+      console.error('Failed to save language:', error);
+      throw error;
+    }
+  };
+
+  const setEnableHaptics = async (enabled: boolean) => {
+    try {
+      await AsyncStorage.setItem(ENABLE_HAPTICS_KEY, enabled.toString());
+      setEnableHapticsState(enabled);
+    } catch (error) {
+      console.error('Failed to save enable haptics setting:', error);
+      throw error;
+    }
+  };
+
   return (
     <SettingsContext.Provider
       value={{
@@ -166,6 +212,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         setAiApiKey,
         aiCustomBaseUrl,
         setAiCustomBaseUrl,
+        language,
+        setLanguage,
+        enableHaptics,
+        setEnableHaptics,
       }}>
       {children}
     </SettingsContext.Provider>

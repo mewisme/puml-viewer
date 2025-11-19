@@ -1,5 +1,7 @@
 import { cn } from '@/lib/utils';
+import { useColorScheme } from 'nativewind';
 import { TextInput, type TextInputProps } from 'react-native';
+import { THEME } from '@/lib/theme';
 
 function Textarea({
   className,
@@ -8,6 +10,9 @@ function Textarea({
   placeholderClassName,
   ...props
 }: TextInputProps & React.RefAttributes<TextInput>) {
+  const { colorScheme } = useColorScheme();
+  const placeholderColor = THEME[colorScheme ?? 'light'].mutedForeground;
+
   return (
     <TextInput
       className={cn(
@@ -16,6 +21,7 @@ function Textarea({
         className
       )}
       placeholderClassName={cn('text-muted-foreground', placeholderClassName)}
+      placeholderTextColor={placeholderColor}
       multiline={multiline}
       numberOfLines={numberOfLines}
       textAlignVertical="top"

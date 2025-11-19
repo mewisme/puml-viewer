@@ -1,4 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import * as Linking from 'expo-linking';
 import * as MediaLibrary from 'expo-media-library';
 import * as React from 'react';
@@ -6,6 +7,16 @@ import * as Sharing from 'expo-sharing';
 
 import { ActivityIndicator, Image, Alert as RNAlert, ScrollView, TouchableOpacity, View } from 'react-native';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   ClipboardPasteIcon,
@@ -16,23 +27,36 @@ import {
   ImageIcon,
   PlayIcon,
   ShareIcon,
+  Sparkles,
   TypeIcon,
   XIcon,
+  Zap,
 } from 'lucide-react-native';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { File, Paths } from 'expo-file-system';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
+import { APP_CONFIG } from '@/lib/app-config';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import ImageViewing from 'react-native-image-viewing';
 import { Label } from '@/components/ui/label';
+import Markdown from 'react-native-markdown-display';
 import { Separator } from '@/components/ui/separator';
 import { Text } from '@/components/ui/text';
 import { Textarea } from '@/components/ui/textarea';
 import { WebView } from 'react-native-webview';
 import { getApiClient } from '@/lib/api-client';
+import { getLanguageCode } from '@/lib/i18n';
+import { useColorScheme } from 'nativewind';
 import { useHistory } from '@/lib/history-context';
 import { useSettings } from '@/lib/settings-context';
+import { useTranslation } from 'react-i18next';
 
 type RenderType = 'text' | 'svg' | 'png';
 
@@ -41,9 +65,19 @@ interface RenderResponse {
 }
 
 export default function Screen() {
+  const { t } = useTranslation();
+  const { colorScheme } = useColorScheme();
   const params = useLocalSearchParams();
   const router = useRouter();
-  const { apiUrl, autoRender } = useSettings();
+  const {
+    apiUrl,
+    autoRender,
+    enableHaptics,
+    aiProvider,
+    aiModel,
+    aiApiKey,
+    aiCustomBaseUrl,
+  } = useSettings();
   const { addToHistory } = useHistory();
   const [pumlText, setPumlText] = React.useState('');
   const autoRenderTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -55,6 +89,13 @@ export default function Screen() {
   const [isImageZoomed, setIsImageZoomed] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [explainResult, setExplainResult] = React.useState<string | null>(null);
+  const [optimizeResult, setOptimizeResult] = React.useState<string | null>(null);
+  const [isExplaining, setIsExplaining] = React.useState(false);
+  const [isOptimizing, setIsOptimizing] = React.useState(false);
+  const [isExplainDialogOpen, setIsExplainDialogOpen] = React.useState(false);
+  const [isOptimizeDialogOpen, setIsOptimizeDialogOpen] = React.useState(false);
+  const [isClearDialogOpen, setIsClearDialogOpen] = React.useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -87,9 +128,9 @@ export default function Screen() {
       }
       setPreviewType(type);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Cannot load preview');
+      setError(err instanceof Error ? err.message : t('home.cannotLoadPreview'));
     }
-  }, [apiUrl]);
+  }, [apiUrl, t]);
 
   React.useEffect(() => {
     if (params.loadCode && params.loadId && params.loadType) {
@@ -112,14 +153,17 @@ export default function Screen() {
           renderType: type,
           previewUrl: type !== 'text' ? `${apiUrl}/api/v1/render/${type}/${id}/raw` : undefined,
         });
+        if (enableHaptics) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
       });
     }
-  }, [params.loadCode, params.loadId, params.loadType, loadPreview, removeThemePlain, addToHistory, apiUrl]);
+  }, [params.loadCode, params.loadId, params.loadType, loadPreview, removeThemePlain, addToHistory, apiUrl, enableHaptics]);
 
   const handleRender = React.useCallback(async (type: RenderType, text?: string) => {
     const textToRender = text ?? pumlText;
     if (!textToRender.trim()) {
-      setError('Please enter PUML code');
+      setError(t('home.pleaseEnterPumlCode'));
       return;
     }
 
@@ -146,14 +190,18 @@ export default function Screen() {
         renderType: type,
         previewUrl: type !== 'text' ? `${apiUrl}/api/v1/render/${type}/${data.id}/raw` : undefined,
       });
+
+      if (enableHaptics) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while rendering');
+      setError(err instanceof Error ? err.message : t('home.errorOccurredWhileRendering'));
       setRawContentUrl(null);
       setRawContentText(null);
     } finally {
       setIsLoading(false);
     }
-  }, [pumlText, apiUrl, loadPreview, addToHistory, removeThemePlain]);
+  }, [pumlText, apiUrl, loadPreview, addToHistory, removeThemePlain, t]);
 
   const isValidPumlFormat = React.useCallback((text: string): boolean => {
     const trimmed = text.trim();
@@ -190,7 +238,7 @@ export default function Screen() {
         }
       }
     } catch (err) {
-      setError('Cannot read clipboard');
+      setError(t('home.cannotReadClipboard'));
     }
   };
 
@@ -210,6 +258,10 @@ export default function Screen() {
   }, []);
 
   const handleClear = () => {
+    setIsClearDialogOpen(true);
+  };
+
+  const handleConfirmClear = () => {
     setPumlText('');
     setRenderId(null);
     setRenderType(null);
@@ -217,7 +269,10 @@ export default function Screen() {
     setRawContentUrl(null);
     setRawContentText(null);
     setError(null);
+    setExplainResult(null);
+    setOptimizeResult(null);
     router.setParams({ loadId: undefined, loadType: undefined, loadCode: undefined });
+    setIsClearDialogOpen(false);
   };
 
   const handleDownloadPng = async () => {
@@ -231,7 +286,7 @@ export default function Screen() {
 
       const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
       if (status !== 'granted') {
-        RNAlert.alert('Error', 'Permission denied to save to gallery', [{ text: 'OK' }]);
+        RNAlert.alert(t('home.error'), t('home.permissionDeniedToSave'), [{ text: 'OK' }]);
         return;
       }
 
@@ -246,9 +301,9 @@ export default function Screen() {
         await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
       }
 
-      RNAlert.alert('Success', 'PNG saved to PUML Viewer album', [{ text: 'OK' }]);
+      RNAlert.alert(t('home.success'), t('home.pngSavedToAlbum'), [{ text: 'OK' }]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Cannot download file');
+      setError(err instanceof Error ? err.message : t('home.cannotDownloadFile'));
     }
   };
 
@@ -275,18 +330,130 @@ export default function Screen() {
           await Sharing.shareAsync(downloadedFile.uri);
         } else {
           await Clipboard.setStringAsync(url);
-          RNAlert.alert('Success', 'URL copied to clipboard', [{ text: 'OK' }]);
+          RNAlert.alert(t('home.success'), t('home.urlCopiedToClipboard'), [{ text: 'OK' }]);
         }
       } else {
         await Clipboard.setStringAsync(rawContentText || '');
-        RNAlert.alert('Success', 'Text copied to clipboard', [{ text: 'OK' }]);
+        RNAlert.alert(t('home.success'), t('home.textCopiedToClipboard'), [{ text: 'OK' }]);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Cannot share');
+      setError(err instanceof Error ? err.message : t('home.cannotShare'));
     }
   };
 
+  const baseUrl = React.useMemo(() => {
+    if (aiProvider === 'custom') {
+      return aiCustomBaseUrl;
+    }
+    return APP_CONFIG.ai.providers[aiProvider]?.baseUrl || '';
+  }, [aiProvider, aiCustomBaseUrl]);
 
+  const handleExplain = React.useCallback(async () => {
+    if (!pumlText.trim()) {
+      setError(t('home.pleaseEnterPumlCode'));
+      return;
+    }
+    if (!aiApiKey.trim()) {
+      setError(t('home.pleaseSetApiKey'));
+      return;
+    }
+    if (!baseUrl.trim()) {
+      setError(t('home.pleaseSetApiBaseUrl'));
+      return;
+    }
+
+    setIsExplaining(true);
+    setError(null);
+    setExplainResult(null);
+
+    try {
+      const cleanedPumlText = removeThemePlain(pumlText);
+      const apiClient = getApiClient(apiUrl);
+      const response = await apiClient.post<{ content?: string; explanation?: string }>(
+        '/api/v1/puml/explain',
+        {
+          baseUrl,
+          apiKey: aiApiKey,
+          model: aiModel,
+          puml: cleanedPumlText,
+          language: getLanguageCode(),
+          stream: false,
+        }
+      );
+
+      const data = response.data;
+      const explanation = data.content || data.explanation || '';
+      setExplainResult(explanation);
+      setIsExplainDialogOpen(true);
+
+      if (enableHaptics) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('home.errorOccurredWhileExplaining'));
+    } finally {
+      setIsExplaining(false);
+    }
+  }, [pumlText, apiUrl, baseUrl, aiApiKey, aiModel, removeThemePlain, enableHaptics, t]);
+
+  const handleOptimize = React.useCallback(async () => {
+    if (!pumlText.trim()) {
+      setError(t('home.pleaseEnterPumlCode'));
+      return;
+    }
+    if (!aiApiKey.trim()) {
+      setError(t('home.pleaseSetApiKey'));
+      return;
+    }
+    if (!baseUrl.trim()) {
+      setError(t('home.pleaseSetApiBaseUrl'));
+      return;
+    }
+
+    setIsOptimizing(true);
+    setError(null);
+    setOptimizeResult(null);
+
+    try {
+      const cleanedPumlText = removeThemePlain(pumlText);
+      const apiClient = getApiClient(apiUrl);
+      const response = await apiClient.post<{ puml?: string; content?: string }>(
+        '/api/v1/puml/optimize',
+        {
+          baseUrl,
+          apiKey: aiApiKey,
+          model: aiModel,
+          puml: cleanedPumlText,
+          stream: false,
+        }
+      );
+
+      const data = response.data;
+      const optimizedPuml = data.puml || data.content || '';
+      setOptimizeResult(optimizedPuml);
+      setIsOptimizeDialogOpen(true);
+
+      if (optimizedPuml.trim()) {
+        await handleRender('png', optimizedPuml);
+      }
+
+      if (enableHaptics) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('home.errorOccurredWhileOptimizing'));
+    } finally {
+      setIsOptimizing(false);
+    }
+  }, [pumlText, apiUrl, baseUrl, aiApiKey, aiModel, removeThemePlain, enableHaptics, t, handleRender]);
+
+  const handleUseOptimizedCode = React.useCallback(() => {
+    if (optimizeResult) {
+      setPumlText(optimizeResult);
+      setOptimizeResult(null);
+      setError(null);
+    }
+  }, [optimizeResult]);
 
   return (
     <>
@@ -296,11 +463,11 @@ export default function Screen() {
       >
         <Card>
           <CardHeader>
-            <CardTitle>Enter PUML Code</CardTitle>
+            <CardTitle>{t('home.title')}</CardTitle>
           </CardHeader>
           <CardContent className="gap-4">
             <View className="gap-2">
-              <Label>PlantUML Diagram</Label>
+              <Label>{t('home.plantUmlDiagram')}</Label>
               <Textarea
                 value={pumlText}
                 onChangeText={handleTextChange}
@@ -312,7 +479,7 @@ export default function Screen() {
 
             {error && (
               <Alert variant="destructive" icon={FileTextIcon}>
-                <AlertTitle>Error</AlertTitle>
+                <AlertTitle>{t('home.error')}</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
@@ -320,7 +487,7 @@ export default function Screen() {
             <View className="flex-row gap-2">
               <Button onPress={handlePaste} variant="outline" className="flex-1">
                 <Icon as={ClipboardPasteIcon} className="size-4" />
-                <Text>Paste</Text>
+                <Text>{t('home.paste')}</Text>
               </Button>
               <Button onPress={handleClear} variant="outline" disabled={!pumlText.trim()}>
                 <Icon as={XIcon} className="size-4" />
@@ -334,7 +501,38 @@ export default function Screen() {
                 ) : (
                   <>
                     <Icon as={PlayIcon} className="size-4" />
-                    <Text>Render</Text>
+                    <Text>{t('home.render')}</Text>
+                  </>
+                )}
+              </Button>
+            </View>
+
+            <View className="flex-row gap-2">
+              <Button
+                onPress={handleExplain}
+                disabled={isExplaining || !pumlText.trim()}
+                variant="secondary"
+                className="flex-1">
+                {isExplaining ? (
+                  <ActivityIndicator size="small" />
+                ) : (
+                  <>
+                    <Icon as={Sparkles} className="size-4" />
+                    <Text>{t('home.explain')}</Text>
+                  </>
+                )}
+              </Button>
+              <Button
+                onPress={handleOptimize}
+                disabled={isOptimizing || !pumlText.trim()}
+                variant="secondary"
+                className="flex-1">
+                {isOptimizing ? (
+                  <ActivityIndicator size="small" />
+                ) : (
+                  <>
+                    <Icon as={Zap} className="size-4" />
+                    <Text>{t('home.optimize')}</Text>
                   </>
                 )}
               </Button>
@@ -342,15 +540,94 @@ export default function Screen() {
           </CardContent>
         </Card>
 
+        <Dialog
+          open={isExplainDialogOpen}
+          onOpenChange={(open) => {
+            setIsExplainDialogOpen(open);
+            if (!open) {
+              setExplainResult(null);
+            }
+          }}>
+          <DialogContent style={{ maxHeight: '80%' }}>
+            <DialogHeader>
+              <DialogTitle>{t('home.explainResult')}</DialogTitle>
+            </DialogHeader>
+            <ScrollView
+              nestedScrollEnabled={true}
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={{ paddingBottom: 16 }}
+              className="rounded-lg bg-muted p-4">
+              {explainResult && (
+                <Markdown
+                  style={{
+                    body: {
+                      fontSize: 14,
+                      paddingBottom: 8,
+                    },
+                    paragraph: {
+                      marginTop: 8,
+                      marginBottom: 8,
+                    },
+                    heading1: {
+                      fontSize: 24,
+                      fontWeight: 'bold',
+                      marginTop: 12,
+                      marginBottom: 8,
+                    },
+                    heading2: {
+                      fontSize: 20,
+                      fontWeight: 'bold',
+                      marginTop: 10,
+                      marginBottom: 6,
+                    },
+                    heading3: {
+                      fontSize: 18,
+                      fontWeight: 'bold',
+                      marginTop: 8,
+                      marginBottom: 4,
+                    },
+                    code_inline: {
+                      backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                      paddingHorizontal: 4,
+                      paddingVertical: 2,
+                      borderRadius: 4,
+                      fontSize: 13,
+                    },
+                    code_block: {
+                      backgroundColor: colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                      padding: 12,
+                      borderRadius: 6,
+                      marginVertical: 8,
+                    },
+                    link: {
+                      color: colorScheme === 'dark' ? '#60a5fa' : '#2563eb',
+                    },
+                    list_item: {
+                      marginVertical: 4,
+                    },
+                    bullet_list: {
+                      marginVertical: 8,
+                    },
+                    ordered_list: {
+                      marginVertical: 8,
+                    },
+                  }}>
+                  {explainResult}
+                </Markdown>
+              )}
+            </ScrollView>
+          </DialogContent>
+        </Dialog>
+
         {renderId && renderType && (
           <Card>
             <CardHeader>
-              <CardTitle>Render Result</CardTitle>
+              <CardTitle>{t('home.renderResult')}</CardTitle>
             </CardHeader>
             <CardContent className="gap-4">
               {previewType && (
                 <View className="gap-2">
-                  <Text className="text-sm font-medium">Preview ({previewType.toUpperCase()}):</Text>
+                  <Text className="text-sm font-medium">{t('home.preview')} ({previewType.toUpperCase()}):</Text>
                   <View className="items-center rounded-lg border border-border bg-muted p-4">
                     {previewType === 'png' && rawContentUrl && (
                       <TouchableOpacity
@@ -398,13 +675,13 @@ export default function Screen() {
 
               <View className="gap-2">
                 <Text className="text-sm text-muted-foreground">
-                  Render ID: {renderId}
+                  {t('home.renderId')}: {renderId}
                 </Text>
                 <Separator />
               </View>
 
               <View className="gap-2">
-                <Text className="text-sm font-medium">View preview:</Text>
+                <Text className="text-sm font-medium">{t('home.viewPreview')}:</Text>
                 <View className="flex-row gap-2">
                   <Button
                     onPress={() => renderId && loadPreview('png', renderId)}
@@ -412,7 +689,7 @@ export default function Screen() {
                     disabled={isLoading || !renderId}
                     className="flex-1">
                     <Icon as={ImageIcon} className="size-4" />
-                    <Text>PNG</Text>
+                    <Text>{t('home.png')}</Text>
                   </Button>
                   <Button
                     onPress={() => renderId && loadPreview('svg', renderId)}
@@ -420,7 +697,7 @@ export default function Screen() {
                     disabled={isLoading || !renderId}
                     className="flex-1">
                     <Icon as={FileImageIcon} className="size-4" />
-                    <Text>SVG</Text>
+                    <Text>{t('home.svg')}</Text>
                   </Button>
                   <Button
                     onPress={() => renderId && loadPreview('text', renderId)}
@@ -428,7 +705,7 @@ export default function Screen() {
                     disabled={isLoading || !renderId}
                     className="flex-1">
                     <Icon as={TypeIcon} className="size-4" />
-                    <Text>Text</Text>
+                    <Text>{t('home.text')}</Text>
                   </Button>
                 </View>
               </View>
@@ -437,7 +714,7 @@ export default function Screen() {
                 <View className="gap-2">
                   <Button onPress={handleDownloadPng} variant="secondary">
                     <Icon as={DownloadIcon} className="size-4" />
-                    <Text>Download PNG</Text>
+                    <Text>{t('home.downloadPng')}</Text>
                   </Button>
                 </View>
               )}
@@ -447,16 +724,51 @@ export default function Screen() {
               <View className="flex-row gap-2">
                 <Button onPress={handleRawView} variant="ghost" className="flex-1">
                   <Icon as={ExternalLinkIcon} className="size-4" />
-                  <Text>Raw View</Text>
+                  <Text>{t('home.rawView')}</Text>
                 </Button>
                 <Button onPress={handleShare} variant="ghost" className="flex-1">
                   <Icon as={ShareIcon} className="size-4" />
-                  <Text>Share</Text>
+                  <Text>{t('home.share')}</Text>
                 </Button>
               </View>
             </CardContent>
           </Card>
         )}
+
+        <Dialog
+          open={isOptimizeDialogOpen}
+          onOpenChange={(open) => {
+            setIsOptimizeDialogOpen(open);
+            if (!open) {
+              setOptimizeResult(null);
+            }
+          }}>
+          <DialogContent style={{ maxHeight: '80%' }}>
+            <DialogHeader>
+              <DialogTitle>{t('home.optimizeResult')}</DialogTitle>
+            </DialogHeader>
+            <View className="gap-4">
+              <ScrollView
+                nestedScrollEnabled={true}
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={{ paddingBottom: 16 }}
+                className="rounded-lg bg-muted p-4">
+                {optimizeResult && (
+                  <Text className="font-mono text-sm whitespace-pre-wrap">{optimizeResult}</Text>
+                )}
+              </ScrollView>
+              <Button
+                onPress={() => {
+                  handleUseOptimizedCode();
+                  setIsOptimizeDialogOpen(false);
+                }}
+                className="w-full">
+                <Icon as={PlayIcon} className="size-4" />
+                <Text>{t('home.useOptimizedCode')}</Text>
+              </Button>
+            </View>
+          </DialogContent>
+        </Dialog>
 
         {rawContentUrl && (
           <ImageViewing
@@ -468,6 +780,23 @@ export default function Screen() {
             doubleTapToZoomEnabled={true}
           />
         )}
+
+        <AlertDialog open={isClearDialogOpen} onOpenChange={setIsClearDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('home.clear')}</AlertDialogTitle>
+              <AlertDialogDescription>{t('home.clearConfirm')}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onPress={() => setIsClearDialogOpen(false)}>
+                <Text>{t('history.cancel')}</Text>
+              </AlertDialogCancel>
+              <AlertDialogAction onPress={handleConfirmClear} className="bg-destructive">
+                <Text>{t('home.clear')}</Text>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </ScrollView>
     </>
   );

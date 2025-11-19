@@ -10,8 +10,10 @@ import { Home } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { parseDeeplink } from '@/lib/deeplink-utils';
+import { useTranslation } from 'react-i18next';
 
 export default function NotFoundScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
 
   React.useEffect(() => {
@@ -32,7 +34,7 @@ export default function NotFoundScreen() {
     <>
       <Stack.Screen
         options={{
-          title: 'Not Found',
+          title: t('notFound.title'),
           headerTransparent: false,
           headerShown: true,
           headerBackVisible: false,
@@ -43,20 +45,20 @@ export default function NotFoundScreen() {
         contentContainerClassName="p-4 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle>Page Not Found</CardTitle>
+            <CardTitle>{t('notFound.pageNotFound')}</CardTitle>
           </CardHeader>
           <CardContent className="gap-4">
             <View className="items-center gap-4">
               <Text className="text-center text-lg font-semibold">
-                Oops! This page doesn't exist.
+                {t('notFound.oopsPageDoesNotExist')}
               </Text>
               <Text className="text-center text-sm text-muted-foreground">
-                The page you're looking for could not be found.
+                {t('notFound.pageNotFoundMessage')}
               </Text>
               <Link href="/(tabs)" asChild>
                 <Button className="mt-4">
                   <Icon as={Home} className="size-4" />
-                  <Text>Go to Home</Text>
+                  <Text>{t('notFound.goToHome')}</Text>
                 </Button>
               </Link>
             </View>

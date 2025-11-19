@@ -22,6 +22,8 @@ A React Native application for viewing PlantUML diagrams. Built with Expo and Re
 - Title editing: Add custom titles to history items
 - Copy diagram code: Copy PUML code from history items
 - AI Assistant: Generate PlantUML diagrams using AI with support for multiple providers (OpenAI, Google, MegaLLM, Custom)
+- AI Explain: Get explanations of PlantUML diagrams using AI
+- AI Optimize: Optimize PlantUML code using AI
 
 ## Getting Started
 
@@ -76,21 +78,23 @@ lib/
 
 ## Technologies
 
-- Expo Router
-- React Native
-- Nativewind (Tailwind CSS)
-- React Native Reusables
-- React Native Reanimated
-- Axios
-- Expo File System
-- Expo Clipboard
-- Expo Media Library
-- React Native WebView
-- React Native Image Viewing
+- **Expo Router** - File-based routing
+- **React Native** - Mobile framework
+- **Nativewind** - Tailwind CSS for React Native
+- **React Native Reusables** - UI component library
+- **React Native Reanimated** - Animation library
+- **Axios** - HTTP client
+- **i18next** - Internationalization (supports English and Vietnamese)
+- **Expo File System** - File operations
+- **Expo Clipboard** - Clipboard access
+- **Expo Media Library** - Media library access
+- **React Native WebView** - WebView component
+- **React Native Image Viewing** - Image viewing with zoom
+- **React Native QR Code SVG** - QR code generation
 
 ## API
 
-The app connects to the PUML Render Server API (default: `https://spuml.mewis.me`). The API URL can be configured in Settings.
+The app connects to the PUML Render Server API. The default API URL is `http://localhost:7235` (can be overridden with `EXPO_PUBLIC_API_URL` environment variable). The API URL can be configured in Settings.
 
 **PUML Server Repository**: [https://github.com/mewisme/puml-server](https://github.com/mewisme/puml-server)
 
@@ -100,12 +104,22 @@ You can run the PUML server locally and configure the app to use it instead of t
 - Testing new features
 - Privacy-sensitive workflows
 
-Endpoints used:
-- POST `/api/v1/render/{type}` - Render PUML to specified format
-- GET `/api/v1/render/{type}/{id}/raw` - Get rendered content
-- POST `/api/v1/puml` - Create new PUML entry and get ID
-- GET `/api/v1/puml/{id}` - Get PUML code by ID
-- POST `/api/v1/puml/generate` - Generate PUML diagram using AI
+### Endpoints used:
+- `POST /api/v1/render/{type}` - Render PUML to specified format (png, svg, text)
+- `GET /api/v1/render/{type}/{id}/raw` - Get rendered content
+- `POST /api/v1/puml` - Create new PUML entry and get ID
+- `GET /api/v1/puml/{id}` - Get PUML code by ID
+- `POST /api/v1/puml/generate` - Generate PUML diagram using AI
+- `POST /api/v1/puml/explain` - Explain PUML diagram using AI
+- `POST /api/v1/puml/optimize` - Optimize PUML code using AI
+
+## Internationalization
+
+The app supports multiple languages:
+- English (en)
+- Vietnamese (vi)
+
+The language is automatically detected from device settings, but can be changed in Settings.
 
 ## License
 

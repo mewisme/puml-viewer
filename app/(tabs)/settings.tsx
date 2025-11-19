@@ -24,8 +24,10 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from 'nativewind';
+import { useTranslation } from 'react-i18next';
 
 export default function SettingsScreen() {
+  const { t } = useTranslation();
   const {
     apiUrl,
     setApiUrl,
@@ -39,6 +41,10 @@ export default function SettingsScreen() {
     setAiApiKey,
     aiCustomBaseUrl,
     setAiCustomBaseUrl,
+    language,
+    setLanguage,
+    enableHaptics,
+    setEnableHaptics,
   } = useSettings();
   const { colorScheme, toggleColorScheme } = useColorScheme();
   const {
@@ -81,6 +87,7 @@ export default function SettingsScreen() {
     try {
       await setApiUrl(localApiUrl.trim());
     } catch (error) {
+      console.error('Failed to save API URL:', error);
     }
   };
 
@@ -93,46 +100,46 @@ export default function SettingsScreen() {
     try {
       const hasUpdate = await checkForUpdates();
       if (hasUpdate) {
-        RNAlert.alert('Update Available', 'A new update is available. Would you like to download it?', [
-          { text: 'Cancel', style: 'cancel' },
+        RNAlert.alert(t('settings.appUpdates.updateAvailableTitle'), t('settings.appUpdates.updateAvailableMessage'), [
+          { text: t('settings.appUpdates.cancel'), style: 'cancel' },
           {
-            text: 'Download',
+            text: t('settings.appUpdates.download'),
             onPress: async () => {
               const downloaded = await downloadUpdate();
               if (downloaded) {
                 RNAlert.alert(
-                  'Update Downloaded',
-                  'The update has been downloaded. The app will restart to apply the update.',
+                  t('settings.appUpdates.updateDownloadedTitle'),
+                  t('settings.appUpdates.updateDownloadedMessage'),
                   [
                     {
-                      text: 'Restart Now',
+                      text: t('settings.appUpdates.restartNow'),
                       onPress: async () => {
                         await reloadApp();
                       },
                     },
-                    { text: 'Later', style: 'cancel' },
+                    { text: t('settings.appUpdates.later'), style: 'cancel' },
                   ]
                 );
               } else {
-                RNAlert.alert('Error', 'Failed to download update. Please try again later.', [{ text: 'OK' }]);
+                RNAlert.alert(t('settings.appUpdates.error'), t('settings.appUpdates.downloadError'), [{ text: 'OK' }]);
               }
             },
           },
         ]);
       } else {
-        RNAlert.alert('No Updates', 'You are using the latest version.', [{ text: 'OK' }]);
+        RNAlert.alert(t('settings.appUpdates.noUpdates'), t('settings.appUpdates.noUpdatesMessage'), [{ text: 'OK' }]);
       }
     } catch (error) {
-      RNAlert.alert('Error', 'Failed to check for updates. Please try again later.', [{ text: 'OK' }]);
+      RNAlert.alert(t('settings.appUpdates.error'), t('settings.appUpdates.errorMessage'), [{ text: 'OK' }]);
     }
   };
 
   const handleApplyUpdate = async () => {
     if (isUpdatePending) {
-      RNAlert.alert('Restart Required', 'The app will restart to apply the update.', [
-        { text: 'Cancel', style: 'cancel' },
+      RNAlert.alert(t('settings.appUpdates.restartRequired'), t('settings.appUpdates.restartRequiredMessage'), [
+        { text: t('settings.appUpdates.cancel'), style: 'cancel' },
         {
-          text: 'Restart Now',
+          text: t('settings.appUpdates.restartNow'),
           onPress: async () => {
             await reloadApp();
           },
@@ -149,6 +156,7 @@ export default function SettingsScreen() {
     try {
       await setAiApiKey(localAiApiKey.trim());
     } catch (error) {
+      console.error('Failed to save AI API key:', error);
     }
   };
 
@@ -156,6 +164,7 @@ export default function SettingsScreen() {
     try {
       await setAiCustomBaseUrl(localAiCustomBaseUrl.trim());
     } catch (error) {
+      console.error('Failed to save AI custom base URL:', error);
     }
   };
 
@@ -163,6 +172,26 @@ export default function SettingsScreen() {
     try {
       await setAiModel(localAiModel.trim());
     } catch (error) {
+      console.error('Failed to save AI model:', error);
+    }
+  };
+
+  const handleLanguageChange = async (value: Option | string) => {
+    try {
+      let langStr: string;
+      if (typeof value === 'string') {
+        langStr = value;
+      } else if (value && typeof value === 'object' && 'value' in value) {
+        langStr = String(value.value);
+      } else {
+        return;
+      }
+
+      if (['en', 'vi'].includes(langStr)) {
+        await setLanguage(langStr);
+      }
+    } catch (error) {
+      console.error('Failed to change language:', error);
     }
   };
 
@@ -182,6 +211,7 @@ export default function SettingsScreen() {
         await setAiProvider(provider);
       }
     } catch (error) {
+      console.error('Failed to change AI provider:', error);
     }
   };
 
@@ -198,6 +228,15 @@ export default function SettingsScreen() {
     if (!aiModel || isCustomProvider) return undefined;
     return { value: aiModel, label: aiModel };
   }, [aiModel, isCustomProvider]);
+
+  const languageOption: Option | undefined = React.useMemo(() => {
+    if (!language) return undefined;
+    const labels: Record<string, string> = {
+      en: 'English',
+      vi: 'Tiếng Việt',
+    };
+    return { value: language, label: labels[language] || language };
+  }, [language]);
 
   return (
     <KeyboardAvoidingView
@@ -219,15 +258,15 @@ export default function SettingsScreen() {
         nestedScrollEnabled={true}>
         <Card>
           <CardHeader>
-            <CardTitle>Settings</CardTitle>
+            <CardTitle>{t('settings.title')}</CardTitle>
           </CardHeader>
           <CardContent className="gap-4">
             <View className="gap-2">
-              <Label>API URL</Label>
+              <Label>{t('settings.apiUrl')}</Label>
               <Input
                 value={localApiUrl}
                 onChangeText={setLocalApiUrl}
-                placeholder="https://spuml.mewis.me"
+                placeholder={t('settings.apiUrlPlaceholder')}
                 keyboardType="url"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -239,7 +278,7 @@ export default function SettingsScreen() {
                     {APP_CONFIG.links.pumlServer}
                   </Text>
                   <Text className="text-xs text-muted-foreground">
-                    Note: When using a custom API URL, you need to run a local PlantUML server. Please clone and run the project above to render PlantUML diagrams.
+                    {t('settings.apiUrlNote')}
                   </Text>
                 </>
               )}
@@ -250,9 +289,9 @@ export default function SettingsScreen() {
             <View className="gap-2">
               <View className="flex-row items-center justify-end">
                 <View className="flex-1 gap-1">
-                  <Label>Auto Render</Label>
+                  <Label>{t('settings.autoRender')}</Label>
                   <Text className="text-sm text-muted-foreground">
-                    Auto render after 300ms when format is valid
+                    {t('settings.autoRenderDescription')}
                   </Text>
                 </View>
                 <Switch checked={autoRender} onCheckedChange={setAutoRender} />
@@ -264,25 +303,57 @@ export default function SettingsScreen() {
             <View className="gap-2">
               <View className="flex-row items-center justify-end">
                 <View className="flex-1 gap-1">
-                  <Label>Dark Mode</Label>
+                  <Label>{t('settings.hapticFeedback')}</Label>
                   <Text className="text-sm text-muted-foreground">
-                    Toggle dark mode
+                    {t('settings.hapticFeedbackDescription')}
+                  </Text>
+                </View>
+                <Switch checked={enableHaptics} onCheckedChange={setEnableHaptics} />
+              </View>
+            </View>
+
+            <Separator />
+
+            <View className="gap-2">
+              <View className="flex-row items-center justify-end">
+                <View className="flex-1 gap-1">
+                  <Label>{t('settings.darkMode')}</Label>
+                  <Text className="text-sm text-muted-foreground">
+                    {t('settings.darkModeDescription')}
                   </Text>
                 </View>
                 <Switch checked={isDarkMode} onCheckedChange={handleToggleTheme} />
               </View>
+            </View>
+
+            <Separator />
+
+            <View className="gap-2">
+              <Label>{t('settings.language')}</Label>
+              <Select value={languageOption} onValueChange={handleLanguageChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('settings.languageDescription')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en" label="English" />
+                  <SelectItem value="vi" label="Tiếng Việt" />
+                </SelectContent>
+              </Select>
+              <Text className="text-xs text-muted-foreground">
+                {t('settings.languageDescription')}
+              </Text>
             </View>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>App Updates</CardTitle>
+            <CardTitle>{t('settings.appUpdates.title')}</CardTitle>
           </CardHeader>
           <CardContent className="gap-4">
             <View className="gap-2">
               <Text className="text-sm text-muted-foreground">
-                Check for app updates and apply them when available.
+                {t('settings.appUpdates.description')}
               </Text>
               <View className="flex-row gap-2">
                 <Button
@@ -293,20 +364,20 @@ export default function SettingsScreen() {
                   {isChecking ? (
                     <ActivityIndicator size="small" />
                   ) : (
-                    <Text>Check for Updates</Text>
+                    <Text>{t('settings.appUpdates.checkForUpdates')}</Text>
                   )}
                 </Button>
                 {isUpdatePending && (
                   <Button onPress={handleApplyUpdate} variant="default" className="flex-1">
-                    <Text>Apply Update</Text>
+                    <Text>{t('settings.appUpdates.applyUpdate')}</Text>
                   </Button>
                 )}
               </View>
               {isUpdateAvailable && !isUpdatePending && (
-                <Text className="text-xs text-primary">Update available! Download it to apply.</Text>
+                <Text className="text-xs text-primary">{t('settings.appUpdates.updateAvailable')}</Text>
               )}
               {isUpdatePending && (
-                <Text className="text-xs text-primary">Update downloaded! Restart the app to apply.</Text>
+                <Text className="text-xs text-primary">{t('settings.appUpdates.updateDownloaded')}</Text>
               )}
             </View>
           </CardContent>
@@ -314,14 +385,14 @@ export default function SettingsScreen() {
 
         <Card>
           <CardHeader>
-            <CardTitle>AI Settings</CardTitle>
+            <CardTitle>{t('settings.aiSettings.title')}</CardTitle>
           </CardHeader>
           <CardContent className="gap-4">
             <View className="gap-2">
-              <Label>Provider</Label>
+              <Label>{t('settings.aiSettings.provider')}</Label>
               <Select value={providerOption} onValueChange={handleProviderChange}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select provider" />
+                  <SelectValue placeholder={t('settings.aiSettings.selectProvider')} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="openai" label="OpenAI" />
@@ -339,11 +410,11 @@ export default function SettingsScreen() {
 
             {isCustomProvider && (
               <View className="gap-2">
-                <Label>Base URL</Label>
+                <Label>{t('settings.aiSettings.baseUrl')}</Label>
                 <Input
                   value={localAiCustomBaseUrl}
                   onChangeText={setLocalAiCustomBaseUrl}
-                  placeholder="https://api.example.com/v1"
+                  placeholder={t('settings.aiSettings.baseUrlPlaceholder')}
                   keyboardType="url"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -353,12 +424,12 @@ export default function SettingsScreen() {
             )}
 
             <View className="gap-2">
-              <Label>Model</Label>
+              <Label>{t('settings.aiSettings.model')}</Label>
               {isCustomProvider ? (
                 <Input
                   value={localAiModel}
                   onChangeText={setLocalAiModel}
-                  placeholder="Enter model name"
+                  placeholder={t('settings.aiSettings.enterModelName')}
                   autoCapitalize="none"
                   autoCorrect={false}
                   onBlur={handleSaveAiModel}
@@ -372,7 +443,7 @@ export default function SettingsScreen() {
                   }}
                   disabled={availableModels.length === 0}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select model" />
+                    <SelectValue placeholder={t('settings.aiSettings.selectModel')} />
                   </SelectTrigger>
                   <SelectContent>
                     {availableModels.length > 0 ? (
@@ -380,7 +451,7 @@ export default function SettingsScreen() {
                         <SelectItem key={model} value={model} label={model} />
                       ))
                     ) : (
-                      <SelectItem value="" disabled label="No models available" />
+                      <SelectItem value="" disabled label={t('settings.aiSettings.noModelsAvailable')} />
                     )}
                   </SelectContent>
                 </Select>
@@ -388,11 +459,11 @@ export default function SettingsScreen() {
             </View>
 
             <View className="gap-2">
-              <Label>API Key</Label>
+              <Label>{t('settings.aiSettings.apiKey')}</Label>
               <Input
                 value={localAiApiKey}
                 onChangeText={setLocalAiApiKey}
-                placeholder="Enter your API key"
+                placeholder={t('settings.aiSettings.apiKeyPlaceholder')}
                 autoCapitalize="none"
                 autoCorrect={false}
                 secureTextEntry

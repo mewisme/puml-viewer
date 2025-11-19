@@ -1,5 +1,6 @@
 import '@/global.css';
 import '@/lib/reanimated-config';
+import '@/lib/i18n';
 
 import * as Linking from 'expo-linking';
 import * as React from 'react';

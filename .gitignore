@@ -54,3 +54,5 @@ expo-env.d.ts
 
 # OS
 Thumbs.db
+
+.env

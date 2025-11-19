@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import * as React from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -14,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { getApiClient } from '@/lib/api-client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettings } from '@/lib/settings-context';
+import { useTranslation } from 'react-i18next';
 
 interface Message {
   id: string;
@@ -24,6 +26,7 @@ interface Message {
 }
 
 export default function AIScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const {
@@ -32,6 +35,7 @@ export default function AIScreen() {
     aiModel,
     aiApiKey,
     aiCustomBaseUrl,
+    enableHaptics,
   } = useSettings();
 
   const [messages, setMessages] = React.useState<Message[]>([]);
@@ -73,11 +77,11 @@ export default function AIScreen() {
   const handleSend = React.useCallback(async () => {
     if (!inputText.trim() || isLoading) return;
     if (!aiApiKey.trim()) {
-      setError('Please set your API key in Settings');
+      setError(t('ai.pleaseSetApiKey'));
       return;
     }
     if (!baseUrl.trim()) {
-      setError('Please set your API base URL in Settings');
+      setError(t('ai.pleaseSetApiBaseUrl'));
       return;
     }
 
@@ -124,8 +128,12 @@ export default function AIScreen() {
       if (data.conversationId) {
         setConversationId(data.conversationId);
       }
+
+      if (enableHaptics) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while generating');
+      setError(err instanceof Error ? err.message : t('ai.errorOccurredWhileGenerating'));
     } finally {
       setIsLoading(false);
     }
@@ -138,7 +146,7 @@ export default function AIScreen() {
     aiModel,
     conversationId,
     extractPumlCode,
-    scrollToBottom,
+    t,
   ]);
 
   const handleRender = React.useCallback(
@@ -163,10 +171,10 @@ export default function AIScreen() {
           },
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to render PUML code');
+        setError(err instanceof Error ? err.message : t('ai.failedToRenderPumlCode'));
       }
     },
-    [apiUrl, router]
+    [apiUrl, router, t]
   );
 
   React.useEffect(() => {
@@ -196,6 +204,8 @@ export default function AIScreen() {
     <>
       <Stack.Screen
         options={{
+          title: t('ai.title'),
+          headerTitle: t('ai.title'),
           headerRight,
         }}
       />
@@ -221,8 +231,7 @@ export default function AIScreen() {
               <CardContent className="p-6 gap-4 items-center">
                 <Icon as={Bot} className="size-12 text-muted-foreground" />
                 <Text className="text-center text-muted-foreground">
-                  Start a conversation with AI to generate PlantUML diagrams. Ask me to create
-                  diagrams like sequence diagrams, class diagrams, or any other PlantUML diagram.
+                  {t('ai.startConversation')}
                 </Text>
               </CardContent>
             </Card>
@@ -238,7 +247,7 @@ export default function AIScreen() {
                       className={`size-4 ${message.role === 'user' ? 'text-primary' : 'text-secondary-foreground'}`}
                     />
                     <Text className="font-semibold text-sm">
-                      {message.role === 'user' ? 'You' : 'AI'}
+                      {message.role === 'user' ? t('ai.you') : t('ai.ai')}
                     </Text>
                   </View>
                   <Text className="text-sm whitespace-pre-wrap">{message.content}</Text>
@@ -249,7 +258,7 @@ export default function AIScreen() {
                         className="w-full"
                         size="sm">
                         <Icon as={PlayIcon} className="size-4" />
-                        <Text>Render</Text>
+                        <Text>{t('ai.render')}</Text>
                       </Button>
                     </View>
                   )}
@@ -260,7 +269,7 @@ export default function AIScreen() {
 
           {error && (
             <Alert variant="destructive" icon={AlertCircle} className="mb-4">
-              <AlertTitle>Error</AlertTitle>
+              <AlertTitle>{t('ai.error')}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
@@ -276,7 +285,7 @@ export default function AIScreen() {
                 ref={inputRef}
                 value={inputText}
                 onChangeText={setInputText}
-                placeholder="Ask AI to generate a PlantUML diagram..."
+                placeholder={t('ai.askAiPlaceholder')}
                 className="flex-1 rounded-2xl px-4"
                 numberOfLines={4}
                 textAlignVertical="top"
