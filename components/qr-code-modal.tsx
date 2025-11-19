@@ -1,16 +1,17 @@
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as React from 'react';
 import * as Sharing from 'expo-sharing';
 
-import { Alert as RNAlert } from 'react-native';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DownloadIcon } from 'lucide-react-native';
+import { File, Paths } from 'expo-file-system';
 import { Modal, Platform, View } from 'react-native';
+
 import { Button } from '@/components/ui/button';
+import { DownloadIcon } from 'lucide-react-native';
 import { Icon } from '@/components/ui/icon';
 import QRCode from 'react-native-qrcode-svg';
+import { Alert as RNAlert } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { XIcon } from 'lucide-react-native';
 
@@ -42,19 +43,22 @@ export function QRCodeModal({ visible, onClose, url, title }: QRCodeModalProps) 
       const filename = `qrcode-${title || 'puml'}-${Date.now()}.png`;
 
       const base64Data = dataUrl.split(',')[1];
-      const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
 
-      await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      const file = new File(Paths.cache, filename);
+      file.write(bytes);
 
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
       if (status === 'granted') {
-        await MediaLibrary.saveToLibraryAsync(fileUri);
+        await MediaLibrary.saveToLibraryAsync(file.uri);
         RNAlert.alert('Success', 'QR code saved to gallery', [{ text: 'OK' }]);
       } else {
         if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(fileUri);
+          await Sharing.shareAsync(file.uri);
         } else {
           RNAlert.alert('Error', 'Permission denied to save to gallery', [{ text: 'OK' }]);
         }

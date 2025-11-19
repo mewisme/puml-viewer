@@ -1,4 +1,5 @@
 import * as Updates from 'expo-updates';
+
 import React from 'react';
 
 interface UpdatesContextType {
@@ -43,7 +44,6 @@ export function UpdatesProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   React.useEffect(() => {
-    // Check for updates on mount (only in production)
     if (!__DEV__ && Updates.isEnabled) {
       checkForUpdates();
     }

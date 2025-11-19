@@ -26,11 +26,27 @@ export default {
       backgroundColor: '#ffffff',
     },
     package: 'me.mewis.pumlviewer',
+    permissions: [
+      'READ_MEDIA_IMAGES',
+      'READ_EXTERNAL_STORAGE',
+    ],
   },
   runtimeVersion: {
     policy: "appVersion"
   },
-  plugins: ['expo-router', 'expo-updates'],
+  plugins: [
+    'expo-router',
+    'expo-updates',
+    [
+      "expo-media-library",
+      {
+        "photosPermission": "Allow $(PRODUCT_NAME) to access your photos.",
+        "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos.",
+        "isAccessMediaLocationEnabled": true,
+        "granularPermissions": ["photo"]
+      }
+    ]
+  ],
   experiments: {
     typedRoutes: true,
   },
