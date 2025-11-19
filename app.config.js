@@ -2,7 +2,7 @@
 export default {
   name: 'PUML Viewer',
   slug: 'puml-viewer',
-  version: '0.0.4',
+  version: '0.0.5',
   description: 'A mobile application for viewing and rendering PlantUML diagrams. Create, preview, and manage your PlantUML diagrams on the go.',
   author: 'Mew',
   orientation: 'portrait',

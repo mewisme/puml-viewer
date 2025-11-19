@@ -9,7 +9,7 @@ export const DEFAULT_API_URL = 'https://spuml.mewis.me';
 
 export const APP_CONFIG = {
   name: 'PUML Viewer',
-  version: '0.0.4',
+  version: '0.0.5',
   description: 'A mobile application for viewing and rendering PlantUML diagrams. Create, preview, and manage your PlantUML diagrams on the go.',
   author: 'Mew',
   defaultApiUrl: DEFAULT_API_URL,

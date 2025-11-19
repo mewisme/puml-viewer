@@ -6,7 +6,7 @@ A React Native application for viewing PlantUML diagrams. Built with Expo and Re
 
 - Render PlantUML diagrams to PNG, SVG, and Text formats
 - Preview rendered diagrams directly in the app
-- Download PNG images
+- Download PNG images to device gallery (saved in "PUML Viewer" album)
 - View raw content in browser
 - Zoom and pan PNG images
 - Paste PUML code from clipboard
